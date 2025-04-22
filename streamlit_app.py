@@ -93,35 +93,35 @@ with tabs[2]:
     # Title and Description
     st.title("TradingView Screener Pro")
     st.markdown("""
-    TradingView Screener is a Python package for creating custom stock, crypto, forex, and asset screeners using TradingView's official API. 
+    TradingView Screener is a Python package for creating custom stock, crypto, forex, and asset screeners using TradingView's official API.
     It retrieves data directly from TradingView—no web scraping or HTML parsing required.
     """)
 
     # Key Features Section
     st.header("Key Features")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.markdown("##### 🔍 Over 3000 Fields")
         st.markdown("Access OHLC, indicators, fundamental metrics, and much more. Comprehensive data at your fingertips.")
-        
+
         st.markdown("##### 🌍 Multiple Markets")
         st.markdown("Trade across stocks, crypto, forex, CFD, futures, bonds, and more. Global market coverage in one tool.")
-        
+
         st.markdown("##### ⏰ Customizable Timeframes")
         st.markdown("Choose timeframes like 1 minute, 5 minutes, 1 hour, or 1 day for each field. Flexible time-based analysis.")
 
     with col2:
         st.markdown("##### 🎯 Advanced Filtering")
         st.markdown("Use SQL-like syntax with AND/OR operators for powerful, flexible queries. Find exactly what you're looking for.")
-        
+
         st.markdown("##### 🔌 Direct API Access")
         st.markdown("Communicate with TradingView's /screener endpoint for robust, up-to-date data. Real-time market insights.")
 
     # Quickstart Section
     st.header("Quickstart Example")
-    
+
     code = '''
 from tradingview_screener import Query, col
 
@@ -137,20 +137,20 @@ screener = (Query()
 # Get the results
 count, data = screener.get_scanner_data()
     '''
-    
+
     st.code(code, language='python')
 
     # Additional Resources
     st.header("Additional Resources")
-    
+
     resources_col1, resources_col2 = st.columns(2)
-    
+
     with resources_col1:
         st.markdown("#### 📚 Documentation")
         st.markdown("Comprehensive guides and API reference")
         if st.button("View Docs"):
             st.markdown("[Documentation](https://github.com/your-repo/docs)")
-    
+
     with resources_col2:
         st.markdown("#### 💻 GitHub")
         st.markdown("Source code and contribution guidelines")
@@ -174,7 +174,7 @@ with doc_expander2:
 # --- DYNAMIC QUERY BUILDER (REDESIGNED UI) ---
 with tabs[0]:
     st.markdown('<div class="screener-container">', unsafe_allow_html=True)
-    
+
     # Create a 2-column layout for the main content
     col1, col2 = st.columns([2, 1])
 
@@ -411,7 +411,7 @@ with tabs[0]:
             for i in range(num_filters):
                 st.markdown(f'<div class="filter-card">', unsafe_allow_html=True)
                 st.markdown(f"#### Filter {i+1}")
-                
+
                 field = st.selectbox(
                     f"Field",
                     [f["name"] for f in fields],
@@ -424,9 +424,9 @@ with tabs[0]:
                     format_func=lambda x: filter_ops[x][1],
                     key=f"filter_op_selectbox_{i}"
                 )
-                
+
                 val = st.text_input(f"Value", key=f"filter_val_{i}")
-                
+
                 filters.append((field, op, val))
                 st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -478,413 +478,4 @@ with tabs[0]:
                 query_code += f".select({', '.join([repr(c) for c in selected_instruments])})"
 
             if filters:
-                filter_conds = ", ".join([f"col('{f}') {o} {repr(v)}" for f, o, v in filters if f and o and v])
-                if filter_conds:
-                    query_code += f".where({filter_conds})"
-
-            if sort_by:
-                query_code += f".sort('{sort_by}', '{sort_order}')"
-
-            query_code += f".offset({offset}).limit({row_limit})"
-
-            st.code(query_code, language="python")
-        except Exception as e:
-            st.error(f"Error generating query preview: {str(e)}")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown('<div style="margin-top: 1rem;">', unsafe_allow_html=True)
-        run_query_button = st.button(
-            "🚀 Run Query",
-            type="primary",
-            help="Execute the query and fetch results",
-            key="run_query_button"
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    if run_query_button:
-        try:
-            with st.spinner("Executing query and fetching results..."):
-                if USE_ANIMATIONS and LOTTIE_AVAILABLE and lottie_loading:
-                    st_lottie(lottie_loading, height=200, key="query_loading")
-
-                q = Query().set_markets(market_code)
-
-                if selected_types:
-                    type_conditions = [f"col('type') == '{t}'" for t in selected_types]
-                    if len(type_conditions) == 1:
-                        q = q.where(eval(type_conditions[0]))
-                    else:
-                        type_filter = " | ".join(type_conditions)
-                        q = q.where(eval(f"({type_filter})"))
-
-                if selected_exchanges:
-                    if len(selected_exchanges) == 1:
-                        q = q.where(col('exchange') == selected_exchanges[0])
-                    else:
-                        conditions = []
-                        for ex in selected_exchanges:
-                            conditions.append(col('exchange') == ex)
-                        combined_condition = conditions[0]
-                        for condition in conditions[1:]:
-                            combined_condition = combined_condition | condition
-                        q = q.where(combined_condition)
-
-                columns_to_select = list(set(selected_instruments + ['type', 'exchange']))
-                q = q.select(*columns_to_select)
-
-                # Handle filters including price bands
-                for f, o, v in filters:
-                    if f and o and v:
-                        if o == 'in':
-                            v = [x.strip() for x in v.split(',')]
-                        q = q.where(eval(f"col('{f}') {o} {repr(v)}"))
-
-                if sort_by:
-                    q = q.sort(sort_by, sort_order)
-
-                q = q.offset(offset).limit(row_limit)
-
-                count, df = q.get_scanner_data()
-
-                if 'type' in df.columns:
-                    df = df[df['type'].isin(selected_types)]
-
-                st.session_state.query_results = df
-                st.session_state.last_query_count = count
-                st.session_state.selected_tab = "results"
-                st.success(f"✅ Query executed successfully! Found {count} matches. Showing {len(df)} rows.")
-
-                st.markdown("""
-                <script>
-                function switchToResults() {
-                    const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
-                    if (tabs.length >= 2) {
-                        tabs[1].click();
-                    }
-                }
-                window.addEventListener('load', switchToResults);
-                </script>
-                """, unsafe_allow_html=True)
-
-        except Exception as e:
-            st.error(f"❌ Error executing query: {str(e)}")
-
-# Results tab
-with tabs[1]:
-    if st.session_state.query_results is not None:
-        df = st.session_state.query_results
-
-        if not df.empty:
-            # Debug: Show DataFrame columns
-            st.write("Debug - Available columns:", df.columns.tolist())
-            
-            # Sort data by date columns if they exist
-            date_columns = [col for col in df.columns if any(date_term in col.lower() 
-                          for date_term in ['date', 'calendar', 'earnings', 'dividend', 'ex_date', 'release'])]
-            
-            if date_columns:
-                st.subheader("📅 Calendar View")
-                
-                # Select date column for grouping
-                sort_by_date = st.selectbox(
-                    "Group by Date Column",
-                    options=date_columns,
-                    format_func=lambda x: x.replace('_', ' ').title()
-                )
-                
-                # Convert date column to datetime
-                try:
-                    if df[sort_by_date].dtype != 'datetime64[ns]':
-                        df[sort_by_date] = pd.to_datetime(df[sort_by_date], errors='coerce')
-                    
-                    # Sort the dataframe
-                    df = df.sort_values(by=sort_by_date, ascending=True, na_position='last')
-                    
-                    # Group by date
-                    df['date_group'] = df[sort_by_date].dt.strftime('%Y-%m-%d')
-                    date_groups = df.groupby('date_group')
-                    
-                    # Create tabs for different views
-                    view_type = st.radio(
-                        "Select View",
-                        options=["Calendar View", "Table View"],
-                        horizontal=True
-                    )
-                    
-                    if view_type == "Calendar View":
-                        # Display each date group in a collapsible section
-                        for date, group in date_groups:
-                            if pd.notna(date):  # Skip NaN dates
-                                with st.expander(f"📅 {date} ({len(group)} companies)"):
-                                    # Configure columns for the group
-                                    column_config = {
-                                        "close": st.column_config.NumberColumn("Price", format="%.2f"),
-                                        "primary": st.column_config.TextColumn("Primary"),
-                                        "sector": st.column_config.TextColumn("Sector"),
-                                        "industry": st.column_config.TextColumn("Industry"),
-                                        "exchange": st.column_config.TextColumn("Exchange"),
-                                        "name": st.column_config.TextColumn("Name"),
-                                        "ticker": st.column_config.TextColumn("Ticker"),
-                                    }
-                                    
-                                    # Add any numeric columns
-                                    for col in group.select_dtypes(include=['float64', 'int64']).columns:
-                                        if col not in column_config and col != 'date_group':
-                                            column_config[col] = st.column_config.NumberColumn(
-                                                col.replace('_', ' ').title(),
-                                                format="%.2f"
-                                            )
-                                    
-                                    # Display the group's data
-                                    st.dataframe(
-                                        group.drop('date_group', axis=1),
-                                        use_container_width=True,
-                                        column_config=column_config
-                                    )
-                    else:
-                        # Table view - show all results in a single table
-                        column_config = {
-                            "close": st.column_config.NumberColumn("Price", format="%.2f"),
-                            "primary": st.column_config.TextColumn("Primary"),
-                            "sector": st.column_config.TextColumn("Sector"),
-                            "industry": st.column_config.TextColumn("Industry"),
-                            "% > EMA50": st.column_config.NumberColumn("% > EMA50", format="%.2f"),
-                            "% > EMA150": st.column_config.NumberColumn("% > EMA150", format="%.2f"),
-                            "% > EMA200": st.column_config.NumberColumn("% > EMA200", format="%.2f"),
-                            "1M %": st.column_config.NumberColumn("1M %", format="%.2f"),
-                            "3M %": st.column_config.NumberColumn("3M %", format="%.2f"),
-                            "% from 52W High": st.column_config.NumberColumn("% from 52W High", format="%.2f"),
-                            "Float %": st.column_config.NumberColumn("Float %", format="%.2f"),
-                            "MCap (Cr)": st.column_config.NumberColumn("MCap (Cr)", format="%.2f"),
-                            "Rel Volume": st.column_config.NumberColumn("Rel Volume", format="%.2f"),
-                        }
-                        
-                        # Add date column configurations
-                        for date_col in date_columns:
-                            column_config[date_col] = st.column_config.DateColumn(
-                                date_col.replace('_', ' ').title(),
-                                format="YYYY-MM-DD"
-                            )
-                        
-                        # Add Price Band column config if it exists
-                        if 'Price Band' in df.columns:
-                            column_config["Price Band"] = st.column_config.NumberColumn("Price Band", format="%.0f")
-                        
-                        st.dataframe(
-                            df.drop('date_group', axis=1),
-                            use_container_width=True,
-                            column_config=column_config
-                        )
-                    
-                except Exception as e:
-                    st.warning(f"Could not process dates: {str(e)}")
-                    # Fall back to regular table view
-                    st.dataframe(df, use_container_width=True)
-            
-            else:
-                # Regular table view for non-date data
-                column_config = {
-                    "close": st.column_config.NumberColumn("Price", format="%.2f"),
-                    "primary": st.column_config.TextColumn("Primary"),
-                    "sector": st.column_config.TextColumn("Sector"),
-                    "industry": st.column_config.TextColumn("Industry"),
-                    "% > EMA50": st.column_config.NumberColumn("% > EMA50", format="%.2f"),
-                    "% > EMA150": st.column_config.NumberColumn("% > EMA150", format="%.2f"),
-                    "% > EMA200": st.column_config.NumberColumn("% > EMA200", format="%.2f"),
-                    "1M %": st.column_config.NumberColumn("1M %", format="%.2f"),
-                    "3M %": st.column_config.NumberColumn("3M %", format="%.2f"),
-                    "% from 52W High": st.column_config.NumberColumn("% from 52W High", format="%.2f"),
-                    "Float %": st.column_config.NumberColumn("Float %", format="%.2f"),
-                    "MCap (Cr)": st.column_config.NumberColumn("MCap (Cr)", format="%.2f"),
-                    "Rel Volume": st.column_config.NumberColumn("Rel Volume", format="%.2f"),
-                }
-                
-                if 'Price Band' in df.columns:
-                    column_config["Price Band"] = st.column_config.NumberColumn("Price Band", format="%.0f")
-                
-                st.dataframe(df, use_container_width=True, column_config=column_config)
-
-            # Exchange filter section - show when multiple exchanges are present
-            if 'exchange' in df.columns and len(df['exchange'].unique()) > 1:
-                st.subheader("🏢 Exchange Filter")
-                available_exchanges = sorted(df['exchange'].unique())
-                selected_exchanges = st.multiselect(
-                    "Filter by Exchange",
-                    options=available_exchanges,
-                    default=available_exchanges,
-                    format_func=lambda x: f"{x} ({len(df[df['exchange'] == x])} symbols)"
-                )
-                
-                if selected_exchanges:
-                    df = df[df['exchange'].isin(selected_exchanges)]
-                    st.info(f"Showing {len(df)} symbols from selected exchanges")
-            
-            # Price band filter section - only for Indian markets
-            if market_code.lower() == 'india':
-                st.subheader("🎯 Price Band Filter")
-            
-            # Fetch price bands data
-            @st.cache_data(ttl=300)
-            def fetch_price_bands():
-                try:
-                    url = "https://docs.google.com/spreadsheets/d/1xig6-dQ8PuPdeCxozcYdm15nOFUKMMZFm_p8VvRFDaE/gviz/tq?tqx=out:csv&gid=364491472"
-                    bands_df = pd.read_csv(url)
-                    bands_df = bands_df[['Symbol', 'Band']]
-                    bands_df['Symbol'] = bands_df['Symbol'].str.replace('NSE:', '', regex=False)
-                    return bands_df
-                except Exception as e:
-                    st.error(f"Error fetching price bands: {str(e)}")
-                    return pd.DataFrame(columns=['Symbol', 'Band'])
-
-            price_bands_df = fetch_price_bands()
-            
-            if not price_bands_df.empty:
-                symbol_to_band = dict(zip(price_bands_df['Symbol'], price_bands_df['Band']))
-                
-                symbol_column = None
-                    for col in ['symbol', 'name', 'Stock', 'ticker']:
-                    if col in df.columns:
-                        symbol_column = col
-                        break
-                
-                if symbol_column:
-                    df['Price Band'] = df[symbol_column].str.replace('NSE:', '', regex=False).map(symbol_to_band)
-                    
-                    available_bands = sorted(price_bands_df['Band'].unique())
-                    
-                    col1, col2 = st.columns([2, 1])
-                    with col1:
-                        selected_bands = st.multiselect(
-                            "Filter by Price Band",
-                            options=available_bands,
-                            format_func=lambda x: f"Band {x} ({len(price_bands_df[price_bands_df['Band'] == x])} stocks)"
-                        )
-                    
-                    with col2:
-                        show_band_info = st.checkbox("Show Price Band Column", value=True)
-                    
-                    if selected_bands:
-                        df = df[df['Price Band'].isin(selected_bands)]
-                        st.info(f"Showing {len(df)} stocks in selected price bands")
-
-                        # Configure display columns based on price band visibility
-                        if not show_band_info and 'Price Band' in df.columns:
-                            df = df.drop('Price Band', axis=1)
-                else:
-                    st.warning("Could not find symbol column in results. Available columns: " + ", ".join(df.columns))
-
-            # Show results for all markets
-            st.subheader("📈 Scanner Results")
-            
-            # Configure columns
-            column_config = {
-                "close": st.column_config.NumberColumn("Price", format="%.2f"),
-                "primary": st.column_config.TextColumn("Primary"),
-                "sector": st.column_config.TextColumn("Sector"),
-                "industry": st.column_config.TextColumn("Industry"),
-                "% > EMA50": st.column_config.NumberColumn("% > EMA50", format="%.2f"),
-                "% > EMA150": st.column_config.NumberColumn("% > EMA150", format="%.2f"),
-                "% > EMA200": st.column_config.NumberColumn("% > EMA200", format="%.2f"),
-                "1M %": st.column_config.NumberColumn("1M %", format="%.2f"),
-                "3M %": st.column_config.NumberColumn("3M %", format="%.2f"),
-                "% from 52W High": st.column_config.NumberColumn("% from 52W High", format="%.2f"),
-                "Float %": st.column_config.NumberColumn("Float %", format="%.2f"),
-                "MCap (Cr)": st.column_config.NumberColumn("MCap (Cr)", format="%.2f"),
-                "Rel Volume": st.column_config.NumberColumn("Rel Volume", format="%.2f"),
-            }
-
-            # Add date column configurations
-            for date_col in date_columns:
-                column_config[date_col] = st.column_config.DateColumn(
-                    date_col.replace('_', ' ').title(),
-                    format="YYYY-MM-DD"
-                )
-
-            # Add Price Band column config if it exists
-            if 'Price Band' in df.columns:
-                column_config["Price Band"] = st.column_config.NumberColumn("Price Band", format="%.0f")
-
-            # Add symbol column config dynamically based on which column exists
-            symbol_column = None
-            for col in ['symbol', 'name', 'Stock', 'ticker']:
-                if col in df.columns:
-                    symbol_column = col
-                    column_config[col] = st.column_config.TextColumn("Stock")
-                    break
-
-            # Display results
-            st.dataframe(
-                df,
-                use_container_width=True,
-                height=500,
-                column_config=column_config
-            )
-
-            # Display statistics
-            stats_col1, stats_col2, stats_col3 = st.columns(3)
-            with stats_col1:
-                st.metric("Total Results", st.session_state.last_query_count)
-            with stats_col2:
-                unique_exchanges = sorted(df['exchange'].unique()) if 'exchange' in df.columns else []
-                st.metric("Exchanges", len(unique_exchanges))
-            with stats_col3:
-                st.metric("Displayed Rows", len(df))
-
-            # Copy Tickers section
-            st.subheader("📋 Copy Tickers")
-            ticker_col1, ticker_col2 = st.columns(2)
-            
-            ticker_column = None
-            for coln in ['name', 'Stock', 'ticker', 'symbol']:
-                if coln in df.columns:
-                    ticker_column = coln
-                    break
-
-            if ticker_column:
-                tickers_simple = ','.join(df[ticker_column].astype(str))
-                with ticker_col1:
-                    st.text_area("Copy Tickers (comma-separated)",
-                                value=tickers_simple,
-                                height=100,
-                                help=f"Simple comma-separated tickers ({len(df)} symbols)")
-
-                with ticker_col2:
-                    tv_formatted = '\n'.join([f"{df['exchange'].iloc[i]}:{row}" if 'exchange' in df.columns else str(row)
-                                              for i, row in enumerate(df[ticker_column])])
-                    st.text_area("Copy for TradingView",
-                                value=tv_formatted,
-                                height=100,
-                                help="Format ready for TradingView watchlists")
-
-            # Download buttons
-            dl_col1, dl_col2 = st.columns(2)
-            with dl_col1:
-                st.download_button(
-                    "📥 Download CSV",
-                    data=df.to_csv(index=False),
-                    file_name="tradingview_results.csv",
-                    mime="text/csv"
-                )
-            with dl_col2:
-                buffer = io.BytesIO()
-                try:
-                    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-                        df.to_excel(writer, index=False)
-                    buffer.seek(0)
-                    st.download_button(
-                        "📥 Download Excel",
-                        data=buffer,
-                        file_name="tradingview_results.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                except Exception as e:
-                    st.error(f"Error creating Excel file: {str(e)}")
-        else:
-            st.info("No results to display. Run a query in the Build Query tab to see results here.")
-    else:
-        st.info("No results to display. Run a query in the Build Query tab to see results here.")
-
-st.markdown("---")
-st.caption("TradingView Screener Pro • Built with Streamlit • Created with ❤️")
+                filter_conds = ", ".join([f"col('{f}') {o} {repr(v)}" for f, o, v i
