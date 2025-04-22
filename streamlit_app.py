@@ -724,56 +724,56 @@ with tabs[1]:
             # Price band filter section - only for Indian markets
             if market_code.lower() == 'india':
                 st.subheader("🎯 Price Band Filter")
-                
-                # Fetch price bands data
-                @st.cache_data(ttl=300)
-                def fetch_price_bands():
-                    try:
-                        url = "https://docs.google.com/spreadsheets/d/1xig6-dQ8PuPdeCxozcYdm15nOFUKMMZFm_p8VvRFDaE/gviz/tq?tqx=out:csv&gid=364491472"
-                        bands_df = pd.read_csv(url)
-                        bands_df = bands_df[['Symbol', 'Band']]
-                        bands_df['Symbol'] = bands_df['Symbol'].str.replace('NSE:', '', regex=False)
-                        return bands_df
-                    except Exception as e:
-                        st.error(f"Error fetching price bands: {str(e)}")
-                        return pd.DataFrame(columns=['Symbol', 'Band'])
+            
+            # Fetch price bands data
+            @st.cache_data(ttl=300)
+            def fetch_price_bands():
+                try:
+                    url = "https://docs.google.com/spreadsheets/d/1xig6-dQ8PuPdeCxozcYdm15nOFUKMMZFm_p8VvRFDaE/gviz/tq?tqx=out:csv&gid=364491472"
+                    bands_df = pd.read_csv(url)
+                    bands_df = bands_df[['Symbol', 'Band']]
+                    bands_df['Symbol'] = bands_df['Symbol'].str.replace('NSE:', '', regex=False)
+                    return bands_df
+                except Exception as e:
+                    st.error(f"Error fetching price bands: {str(e)}")
+                    return pd.DataFrame(columns=['Symbol', 'Band'])
 
-                price_bands_df = fetch_price_bands()
+            price_bands_df = fetch_price_bands()
+            
+            if not price_bands_df.empty:
+                symbol_to_band = dict(zip(price_bands_df['Symbol'], price_bands_df['Band']))
                 
-                if not price_bands_df.empty:
-                    symbol_to_band = dict(zip(price_bands_df['Symbol'], price_bands_df['Band']))
-                    
-                    symbol_column = None
+                symbol_column = None
                     for col in ['symbol', 'name', 'Stock', 'ticker']:
-                        if col in df.columns:
-                            symbol_column = col
-                            break
+                    if col in df.columns:
+                        symbol_column = col
+                        break
+                
+                if symbol_column:
+                    df['Price Band'] = df[symbol_column].str.replace('NSE:', '', regex=False).map(symbol_to_band)
                     
-                    if symbol_column:
-                        df['Price Band'] = df[symbol_column].str.replace('NSE:', '', regex=False).map(symbol_to_band)
-                        
-                        available_bands = sorted(price_bands_df['Band'].unique())
-                        
-                        col1, col2 = st.columns([2, 1])
-                        with col1:
-                            selected_bands = st.multiselect(
-                                "Filter by Price Band",
-                                options=available_bands,
-                                format_func=lambda x: f"Band {x} ({len(price_bands_df[price_bands_df['Band'] == x])} stocks)"
-                            )
-                        
-                        with col2:
-                            show_band_info = st.checkbox("Show Price Band Column", value=True)
-                        
-                        if selected_bands:
-                            df = df[df['Price Band'].isin(selected_bands)]
-                            st.info(f"Showing {len(df)} stocks in selected price bands")
+                    available_bands = sorted(price_bands_df['Band'].unique())
+                    
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        selected_bands = st.multiselect(
+                            "Filter by Price Band",
+                            options=available_bands,
+                            format_func=lambda x: f"Band {x} ({len(price_bands_df[price_bands_df['Band'] == x])} stocks)"
+                        )
+                    
+                    with col2:
+                        show_band_info = st.checkbox("Show Price Band Column", value=True)
+                    
+                    if selected_bands:
+                        df = df[df['Price Band'].isin(selected_bands)]
+                        st.info(f"Showing {len(df)} stocks in selected price bands")
 
                         # Configure display columns based on price band visibility
                         if not show_band_info and 'Price Band' in df.columns:
                             df = df.drop('Price Band', axis=1)
-                    else:
-                        st.warning("Could not find symbol column in results. Available columns: " + ", ".join(df.columns))
+                else:
+                    st.warning("Could not find symbol column in results. Available columns: " + ", ".join(df.columns))
 
             # Show results for all markets
             st.subheader("📈 Scanner Results")
@@ -852,7 +852,7 @@ with tabs[1]:
 
                 with ticker_col2:
                     tv_formatted = '\n'.join([f"{df['exchange'].iloc[i]}:{row}" if 'exchange' in df.columns else str(row)
-                                            for i, row in enumerate(df[ticker_column])])
+                                              for i, row in enumerate(df[ticker_column])])
                     st.text_area("Copy for TradingView",
                                 value=tv_formatted,
                                 height=100,
