@@ -3,31 +3,25 @@ import pandas as pd
 import io
 import time
 
-# Set the page configuration
+# Page config
 st.set_page_config(
-    page_title="Stock News - TradingView Screener Pro",
+    page_title="Stock News",
     page_icon="📰",
-    layout="wide"
+    layout="centered"
 )
 
-# Title and auto-refresh info
-col1, col2 = st.columns([3, 1])
-with col1:
-    st.title("📰 Stock News")
-with col2:
-    st.markdown("""
-    <div style='text-align: right; margin-top: 20px;'>
-        <span style='background-color: #262730; padding: 10px; border-radius: 5px;'>
-            🔄 Auto-refreshing every 20s
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
+# Load custom CSS
+try:
+    with open('style.css') as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+except FileNotFoundError:
+    st.warning("Style file not found. Page will run with default styling.")
 
 # Initialize session state for last update time
 if 'last_update_time' not in st.session_state:
     st.session_state.last_update_time = time.time()
 
-# Fetch news data with auto-refresh
+# --- ALL FUNCTION DEFINITIONS FIRST ---
 @st.cache_data(ttl=20)  # Cache expires after 20 seconds
 def fetch_stock_news():
     try:
@@ -41,7 +35,6 @@ def fetch_stock_news():
         st.error(f"Error fetching news data: {str(e)}")
         return pd.DataFrame()
 
-# Auto-refresh mechanism
 def get_current_news():
     # Check if 20 seconds have passed since last update
     if time.time() - st.session_state.last_update_time >= 20:
@@ -49,20 +42,35 @@ def get_current_news():
         fetch_stock_news.clear()
     return fetch_stock_news()
 
+# --- UI LAYOUT BELOW ---
+# Title, Refresh Button, and Auto-refresh info in a single row
+col1, col2, col3 = st.columns([3, 1, 2])
+with col1:
+    st.title("📰 Stock News")
+with col2:
+    if st.button("🔄 Refresh Now", key="refresh_now"):
+        fetch_stock_news.clear()
+        st.rerun()
+with col3:
+    st.markdown(
+        """
+        <div style='display: flex; align-items: center; height: 100%; justify-content: flex-end;'>
+            <span style='background-color: #262730; padding: 10px 16px; border-radius: 5px; font-size: 1rem;'>
+                🔄 Auto-refreshing every 20s
+            </span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 # Get the news data
 news_df = get_current_news()
 
-# Add a refresh button for manual refresh
-if st.button("🔄 Refresh Now"):
-    fetch_stock_news.clear()
-    news_df = fetch_stock_news()
-    st.success("Data refreshed!")
-
 if not news_df.empty:
-    # Add filters at the top
+    # Add filters at the top with adjusted ratios
     st.subheader("🔍 Filter News")
     
-    col1, col2 = st.columns([1, 1])
+    col1, col2 = st.columns([2, 1])
     
     with col1:
         # Filter by date
@@ -186,4 +194,224 @@ st.markdown("""
 
 # Footer
 st.markdown("---")
-st.caption("TradingView Screener Pro • Built with Streamlit • Created with ❤️") 
+st.caption("TradingView Screener Pro • Built with Streamlit • Created with ❤️")
+
+# Page Header
+st.markdown("""
+<div class='page-header'>
+    <h1>📰 Stock News</h1>
+    <p class='subtitle'>Latest market insights and company updates</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Main Content
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    # Market Overview Card
+    st.markdown("""
+    <div class='content-card'>
+        <h3>📊 Market Overview</h3>
+        <div class='news-filters'>
+            <span class='filter-tag active'>All Markets</span>
+            <span class='filter-tag'>US Stocks</span>
+            <span class='filter-tag'>Crypto</span>
+            <span class='filter-tag'>Forex</span>
+        </div>
+        
+        <div class='news-list'>
+            <div class='news-item'>
+                <span class='news-time'>10:30 AM</span>
+                <span class='news-category'>Market Update</span>
+                <p class='news-headline'>Major indices showing strong momentum in morning trading</p>
+            </div>
+            <div class='news-item'>
+                <span class='news-time'>09:45 AM</span>
+                <span class='news-category'>Economic Data</span>
+                <p class='news-headline'>Consumer confidence index beats expectations</p>
+            </div>
+            <div class='news-item'>
+                <span class='news-time'>09:15 AM</span>
+                <span class='news-category'>Company News</span>
+                <p class='news-headline'>Tech sector leads gains with strong earnings reports</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    # Quick Filters Card
+    st.markdown("""
+    <div class='content-card'>
+        <h3>🔍 Quick Filters</h3>
+        <div class='quick-filters'>
+            <div class='filter-item'>
+                <span class='material-icons'>trending_up</span>
+                Top Gainers
+            </div>
+            <div class='filter-item'>
+                <span class='material-icons'>trending_down</span>
+                Top Losers
+            </div>
+            <div class='filter-item'>
+                <span class='material-icons'>volume_up</span>
+                High Volume
+            </div>
+            <div class='filter-item'>
+                <span class='material-icons'>star</span>
+                Most Active
+            </div>
+        </div>
+    </div>
+    
+    <div class='content-card'>
+        <h3>📈 Market Sentiment</h3>
+        <div class='sentiment-indicators'>
+            <div class='sentiment-item'>
+                <span class='sentiment-label'>Fear & Greed Index</span>
+                <div class='sentiment-value positive'>65</div>
+            </div>
+            <div class='sentiment-item'>
+                <span class='sentiment-label'>Market Volatility</span>
+                <div class='sentiment-value neutral'>Medium</div>
+            </div>
+            <div class='sentiment-item'>
+                <span class='sentiment-label'>Trend Strength</span>
+                <div class='sentiment-value positive'>Strong</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Additional CSS for news-specific components
+st.markdown("""
+<style>
+/* News Items */
+.news-list {
+    margin-top: 1.5rem;
+}
+
+.news-item {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.3s ease;
+}
+
+.news-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.news-time {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.6);
+    margin-right: 1rem;
+}
+
+.news-category {
+    font-size: 0.8rem;
+    color: #2962ff;
+    background: rgba(41,98,255,0.1);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+
+.news-headline {
+    margin-top: 0.5rem;
+    font-size: 1rem;
+    color: rgba(255,255,255,0.9);
+}
+
+/* Sentiment Indicators */
+.sentiment-indicators {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.sentiment-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+}
+
+.sentiment-label {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.8);
+}
+
+.sentiment-value {
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+}
+
+.sentiment-value.positive {
+    background: rgba(46,204,113,0.2);
+    color: #2ecc71;
+}
+
+.sentiment-value.neutral {
+    background: rgba(241,196,15,0.2);
+    color: #f1c40f;
+}
+
+.sentiment-value.negative {
+    background: rgba(231,76,60,0.2);
+    color: #e74c3c;
+}
+
+/* Adjust container widths for centered layout */
+.content-card {
+    max-width: 100%;
+    margin-bottom: 1rem;
+}
+
+/* Adjust column layouts */
+.stColumns {
+    gap: 1rem;
+}
+
+/* Make dataframes and charts responsive */
+.stDataFrame {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Adjust metrics for smaller width */
+.stMetric {
+    width: 100%;
+}
+
+/* Make buttons full width on smaller screens */
+@media (max-width: 768px) {
+    .stButton > button {
+        width: 100%;
+    }
+    .stSelectbox, .stDateInput {
+        width: 100%;
+    }
+}
+
+/* Adjust card padding for smaller screens */
+@media (max-width: 768px) {
+    .content-card {
+        padding: 1rem;
+    }
+}
+
+/* Adjust news items for better readability */
+.news-item {
+    max-width: 100%;
+}
+
+/* Make filter tags wrap better */
+.news-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+</style>
+""", unsafe_allow_html=True) 
