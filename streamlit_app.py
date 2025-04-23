@@ -1,13 +1,18 @@
 import streamlit as st
+import inspect
 from src.tradingview_screener import Query, col
 import pandas as pd
-import inspect
+import io
 import requests
 from bs4 import BeautifulSoup
-import logging
-import time
-import json
-import io
+
+# --- PAGE CONFIG MUST BE FIRST ---
+st.set_page_config(
+    page_title="TradingView Screener Pro",
+    page_icon="📈",
+    layout="centered",
+    initial_sidebar_state="expanded"  # Sidebar expanded by default on desktop
+)
 
 # Feature flag to enable/disable animations
 USE_ANIMATIONS = True
@@ -19,14 +24,6 @@ try:
 except ImportError:
     LOTTIE_AVAILABLE = False
     USE_ANIMATIONS = False
-
-# Set the page configuration with the new modern title and wide layout
-st.set_page_config(
-    page_title="TradingView Screener Pro",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Load our custom CSS
 try:
@@ -68,16 +65,16 @@ def card(title, content, icon="", is_sidebar=False):
         st.markdown(f"<div class='{card_class}'><h4>{title}</h4>{content}</div>", unsafe_allow_html=True)
 
 # App title with animation or fallback image
-col1, col2 = st.columns([3, 1])
+col1, col2 = st.columns([4, 1])  # Adjusted ratio for better centered layout
 with col1:
     st.title("TradingView Screener Pro")
     st.markdown("<p class='app-subtitle'>Advanced market screening with modern UI</p>", unsafe_allow_html=True)
 with col2:
     if USE_ANIMATIONS and LOTTIE_AVAILABLE and lottie_chart:
-        st_lottie(lottie_chart, height=120, key="chart_animation")
+        st_lottie(lottie_chart, height=100, key="chart_animation")  # Reduced height
     else:
         # Fallback image if animation is not available
-        st.markdown("<div style='text-align: center; padding-top: 20px;'><span style='font-size: 80px;'>📊</span></div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; padding-top: 10px;'><span style='font-size: 60px;'>📊</span></div>", unsafe_allow_html=True)
 
 # Session state initialization
 if 'query_results' not in st.session_state:
@@ -161,22 +158,82 @@ count, data = screener.get_scanner_data()
     st.markdown("---")
     st.markdown("Built with ❤️ using Python and Streamlit")
 
-# --- Sidebar: Help/Docs ---
-st.sidebar.header("📖 Documentation")
-doc_expander = st.sidebar.expander("Query methods", expanded=False)
-with doc_expander:
-    st.markdown(f"```python\n{inspect.getdoc(Query)}\n```")
+# --- SIDEBAR: Help/Docs ---
+st.sidebar.markdown("""
+<div class='sidebar-header'>
+    <h1>📚 Documentation</h1>
+    <p class='sidebar-subtitle'>Explore TradingView Screener Features</p>
+</div>
+""", unsafe_allow_html=True)
 
-doc_expander2 = st.sidebar.expander("Column operations", expanded=False)
+st.sidebar.markdown("<div class='sidebar-content'>", unsafe_allow_html=True)
+
+# Query Methods Section
+st.sidebar.markdown("""
+<div class='sidebar-section'>
+    <h3>🔍 Query Methods</h3>
+    <p class='sidebar-description'>Learn how to build powerful market queries</p>
+</div>
+""", unsafe_allow_html=True)
+
+doc_expander = st.sidebar.expander("View Query Methods", expanded=False)
+with doc_expander:
+    st.markdown(f"""
+    <div class='doc-content'>
+        <pre><code>{inspect.getdoc(Query)}</code></pre>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Column Operations Section
+st.sidebar.markdown("""
+<div class='sidebar-section'>
+    <h3>📊 Column Operations</h3>
+    <p class='sidebar-description'>Discover available data operations</p>
+</div>
+""", unsafe_allow_html=True)
+
+doc_expander2 = st.sidebar.expander("View Column Operations", expanded=False)
 with doc_expander2:
-    st.markdown(f"```python\n{inspect.getdoc(col)}\n```")
+    st.markdown(f"""
+    <div class='doc-content'>
+        <pre><code>{inspect.getdoc(col)}</code></pre>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Quick Tips Section
+st.sidebar.markdown("""
+<div class='sidebar-section'>
+    <h3>💡 Quick Tips</h3>
+    <ul class='sidebar-tips'>
+        <li>🎯 Use multiple filters for precise results</li>
+        <li>📈 Sort by any column for better analysis</li>
+        <li>💾 Export results in CSV or Excel format</li>
+        <li>🔄 Refresh regularly for latest data</li>
+    </ul>
+</div>
+""", unsafe_allow_html=True)
+
+# Support Section
+st.sidebar.markdown("""
+<div class='sidebar-section support-section'>
+    <h3>🤝 Need Help?</h3>
+    <p class='sidebar-description'>Check out our resources:</p>
+    <ul class='support-links'>
+        <li>📖 <a href="https://github.com/your-repo/docs">Documentation</a></li>
+        <li>💻 <a href="https://github.com/your-repo">GitHub Repository</a></li>
+        <li>❓ <a href="#">FAQ</a></li>
+    </ul>
+</div>
+""", unsafe_allow_html=True)
+
+st.sidebar.markdown("</div>", unsafe_allow_html=True)
 
 # --- DYNAMIC QUERY BUILDER (REDESIGNED UI) ---
 with tabs[0]:
     st.markdown('<div class="screener-container">', unsafe_allow_html=True)
     
     # Create a 2-column layout for the main content
-    col1, col2 = st.columns([2, 1])
+    col1, col2 = st.columns([3, 2])  # Adjusted ratio for better centered layout
 
     with col1:
         st.markdown('<h2 class="section-header">🛠️ Query Builder</h2>', unsafe_allow_html=True)
@@ -260,26 +317,39 @@ with tabs[0]:
                 with st.spinner(f"🔄 Fetching fields for {INSTRUMENT_TYPES[instrument_type]}..."):
                     resp = requests.get(url, timeout=5)
                     resp.raise_for_status()
-                    soup = BeautifulSoup(resp.text, "html.parser")
+                    content = resp.text
+
                     fields = []
                     exchanges = set()
-
-                    for row in soup.select("tr"):
-                        cols = row.find_all("td")
-                        if len(cols) >= 3:
-                            field_name = cols[0].text.strip()
-                            display_name = cols[1].text.strip()
-                            field_type = cols[2].text.strip()
-                            if not all([field_name, display_name, field_type]):
-                                continue
-                            fields.append({
-                                "name": field_name,
-                                "display": display_name,
-                                "type": field_type,
-                            })
-                            if len(cols) > 3:
-                                exchanges.update([e.strip() for e in cols[3].text.split(",") if e.strip()])
-
+                    # If the content is a plain text list (not HTML table)
+                    for line in content.splitlines():
+                        line = line.strip()
+                        if line.startswith("- "):
+                            field_name = line[2:]
+                            if field_name:
+                                fields.append({
+                                    "name": field_name,
+                                    "display": field_name,
+                                    "type": "string",  # Default type
+                                })
+                    if not fields:
+                        # fallback to old HTML parsing in case the format changes
+                        soup = BeautifulSoup(content, "html.parser")
+                        for row in soup.select("tr"):
+                            cols = row.find_all("td")
+                            if len(cols) >= 3:
+                                field_name = cols[0].text.strip()
+                                display_name = cols[1].text.strip()
+                                field_type = cols[2].text.strip()
+                                if not all([field_name, display_name, field_type]):
+                                    continue
+                                fields.append({
+                                    "name": field_name,
+                                    "display": display_name,
+                                    "type": field_type,
+                                })
+                                if len(cols) > 3:
+                                    exchanges.update([e.strip() for e in cols[3].text.split(",") if e.strip()])
                     if not fields:
                         basic_fields = [
                             {"name": "name", "display": "Name", "type": "string"},
@@ -577,134 +647,22 @@ with tabs[1]:
         df = st.session_state.query_results
 
         if not df.empty:
-            # Debug: Show DataFrame columns
-            st.write("Debug - Available columns:", df.columns.tolist())
-            
-            # Sort data by date columns if they exist
-            date_columns = [col for col in df.columns if any(date_term in col.lower() 
-                          for date_term in ['date', 'calendar', 'earnings', 'dividend', 'ex_date', 'release'])]
-            
-            if date_columns:
-                st.subheader("📅 Calendar View")
-                
-                # Select date column for grouping
-                sort_by_date = st.selectbox(
-                    "Group by Date Column",
-                    options=date_columns,
-                    format_func=lambda x: x.replace('_', ' ').title()
-                )
-                
-                # Convert date column to datetime
-                try:
-                    if df[sort_by_date].dtype != 'datetime64[ns]':
-                        df[sort_by_date] = pd.to_datetime(df[sort_by_date], errors='coerce')
-                    
-                    # Sort the dataframe
-                    df = df.sort_values(by=sort_by_date, ascending=True, na_position='last')
-                    
-                    # Group by date
-                    df['date_group'] = df[sort_by_date].dt.strftime('%Y-%m-%d')
-                    date_groups = df.groupby('date_group')
-                    
-                    # Create tabs for different views
-                    view_type = st.radio(
-                        "Select View",
-                        options=["Calendar View", "Table View"],
-                        horizontal=True
-                    )
-                    
-                    if view_type == "Calendar View":
-                        # Display each date group in a collapsible section
-                        for date, group in date_groups:
-                            if pd.notna(date):  # Skip NaN dates
-                                with st.expander(f"📅 {date} ({len(group)} companies)"):
-                                    # Configure columns for the group
-                                    column_config = {
-                                        "close": st.column_config.NumberColumn("Price", format="%.2f"),
-                                        "primary": st.column_config.TextColumn("Primary"),
-                                        "sector": st.column_config.TextColumn("Sector"),
-                                        "industry": st.column_config.TextColumn("Industry"),
-                                        "exchange": st.column_config.TextColumn("Exchange"),
-                                        "name": st.column_config.TextColumn("Name"),
-                                        "ticker": st.column_config.TextColumn("Ticker"),
-                                    }
-                                    
-                                    # Add any numeric columns
-                                    for col in group.select_dtypes(include=['float64', 'int64']).columns:
-                                        if col not in column_config and col != 'date_group':
-                                            column_config[col] = st.column_config.NumberColumn(
-                                                col.replace('_', ' ').title(),
-                                                format="%.2f"
-                                            )
-                                    
-                                    # Display the group's data
-                                    st.dataframe(
-                                        group.drop('date_group', axis=1),
-                                        use_container_width=True,
-                                        column_config=column_config
-                                    )
-                    else:
-                        # Table view - show all results in a single table
-                        column_config = {
-                            "close": st.column_config.NumberColumn("Price", format="%.2f"),
-                            "primary": st.column_config.TextColumn("Primary"),
-                            "sector": st.column_config.TextColumn("Sector"),
-                            "industry": st.column_config.TextColumn("Industry"),
-                            "% > EMA50": st.column_config.NumberColumn("% > EMA50", format="%.2f"),
-                            "% > EMA150": st.column_config.NumberColumn("% > EMA150", format="%.2f"),
-                            "% > EMA200": st.column_config.NumberColumn("% > EMA200", format="%.2f"),
-                            "1M %": st.column_config.NumberColumn("1M %", format="%.2f"),
-                            "3M %": st.column_config.NumberColumn("3M %", format="%.2f"),
-                            "% from 52W High": st.column_config.NumberColumn("% from 52W High", format="%.2f"),
-                            "Float %": st.column_config.NumberColumn("Float %", format="%.2f"),
-                            "MCap (Cr)": st.column_config.NumberColumn("MCap (Cr)", format="%.2f"),
-                            "Rel Volume": st.column_config.NumberColumn("Rel Volume", format="%.2f"),
-                        }
-                        
-                        # Add date column configurations
-                        for date_col in date_columns:
-                            column_config[date_col] = st.column_config.DateColumn(
-                                date_col.replace('_', ' ').title(),
-                                format="YYYY-MM-DD"
-                            )
-                        
-                        # Add Price Band column config if it exists
-                        if 'Price Band' in df.columns:
-                            column_config["Price Band"] = st.column_config.NumberColumn("Price Band", format="%.0f")
-                        
-                        st.dataframe(
-                            df.drop('date_group', axis=1),
-                            use_container_width=True,
-                            column_config=column_config
-                        )
-                    
-                except Exception as e:
-                    st.warning(f"Could not process dates: {str(e)}")
-                    # Fall back to regular table view
-                    st.dataframe(df, use_container_width=True)
-            
-            else:
-                # Regular table view for non-date data
-                column_config = {
-                    "close": st.column_config.NumberColumn("Price", format="%.2f"),
-                    "primary": st.column_config.TextColumn("Primary"),
-                    "sector": st.column_config.TextColumn("Sector"),
-                    "industry": st.column_config.TextColumn("Industry"),
-                    "% > EMA50": st.column_config.NumberColumn("% > EMA50", format="%.2f"),
-                    "% > EMA150": st.column_config.NumberColumn("% > EMA150", format="%.2f"),
-                    "% > EMA200": st.column_config.NumberColumn("% > EMA200", format="%.2f"),
-                    "1M %": st.column_config.NumberColumn("1M %", format="%.2f"),
-                    "3M %": st.column_config.NumberColumn("3M %", format="%.2f"),
-                    "% from 52W High": st.column_config.NumberColumn("% from 52W High", format="%.2f"),
-                    "Float %": st.column_config.NumberColumn("Float %", format="%.2f"),
-                    "MCap (Cr)": st.column_config.NumberColumn("MCap (Cr)", format="%.2f"),
-                    "Rel Volume": st.column_config.NumberColumn("Rel Volume", format="%.2f"),
-                }
-                
-                if 'Price Band' in df.columns:
-                    column_config["Price Band"] = st.column_config.NumberColumn("Price Band", format="%.0f")
-                
-                st.dataframe(df, use_container_width=True, column_config=column_config)
+            # Configure columns for display
+            column_config = {
+                "close": st.column_config.NumberColumn("Price", format="%.2f"),
+                "primary": st.column_config.TextColumn("Primary"),
+                "sector": st.column_config.TextColumn("Sector"),
+                "industry": st.column_config.TextColumn("Industry"),
+                "% > EMA50": st.column_config.NumberColumn("% > EMA50", format="%.2f"),
+                "% > EMA150": st.column_config.NumberColumn("% > EMA150", format="%.2f"),
+                "% > EMA200": st.column_config.NumberColumn("% > EMA200", format="%.2f"),
+                "1M %": st.column_config.NumberColumn("1M %", format="%.2f"),
+                "3M %": st.column_config.NumberColumn("3M %", format="%.2f"),
+                "% from 52W High": st.column_config.NumberColumn("% from 52W High", format="%.2f"),
+                "Float %": st.column_config.NumberColumn("Float %", format="%.2f"),
+                "MCap (Cr)": st.column_config.NumberColumn("MCap (Cr)", format="%.2f"),
+                "Rel Volume": st.column_config.NumberColumn("Rel Volume", format="%.2f"),
+            }
 
             # Exchange filter section - show when multiple exchanges are present
             if 'exchange' in df.columns and len(df['exchange'].unique()) > 1:
@@ -720,7 +678,7 @@ with tabs[1]:
                 if selected_exchanges:
                     df = df[df['exchange'].isin(selected_exchanges)]
                     st.info(f"Showing {len(df)} symbols from selected exchanges")
-            
+
             # Price band filter section - only for Indian markets
             if market_code.lower() == 'india':
                 st.subheader("🎯 Price Band Filter")
@@ -744,7 +702,7 @@ with tabs[1]:
                 symbol_to_band = dict(zip(price_bands_df['Symbol'], price_bands_df['Band']))
                 
                 symbol_column = None
-                    for col in ['symbol', 'name', 'Stock', 'ticker']:
+                for col in ['symbol', 'name', 'Stock', 'ticker']:
                     if col in df.columns:
                         symbol_column = col
                         break
@@ -769,33 +727,16 @@ with tabs[1]:
                         df = df[df['Price Band'].isin(selected_bands)]
                         st.info(f"Showing {len(df)} stocks in selected price bands")
 
-                        # Configure display columns based on price band visibility
                         if not show_band_info and 'Price Band' in df.columns:
                             df = df.drop('Price Band', axis=1)
-                else:
-                    st.warning("Could not find symbol column in results. Available columns: " + ", ".join(df.columns))
 
-            # Show results for all markets
+            # Main Results Display
             st.subheader("📈 Scanner Results")
             
-            # Configure columns
-            column_config = {
-                "close": st.column_config.NumberColumn("Price", format="%.2f"),
-                "primary": st.column_config.TextColumn("Primary"),
-                "sector": st.column_config.TextColumn("Sector"),
-                "industry": st.column_config.TextColumn("Industry"),
-                "% > EMA50": st.column_config.NumberColumn("% > EMA50", format="%.2f"),
-                "% > EMA150": st.column_config.NumberColumn("% > EMA150", format="%.2f"),
-                "% > EMA200": st.column_config.NumberColumn("% > EMA200", format="%.2f"),
-                "1M %": st.column_config.NumberColumn("1M %", format="%.2f"),
-                "3M %": st.column_config.NumberColumn("3M %", format="%.2f"),
-                "% from 52W High": st.column_config.NumberColumn("% from 52W High", format="%.2f"),
-                "Float %": st.column_config.NumberColumn("Float %", format="%.2f"),
-                "MCap (Cr)": st.column_config.NumberColumn("MCap (Cr)", format="%.2f"),
-                "Rel Volume": st.column_config.NumberColumn("Rel Volume", format="%.2f"),
-            }
-
-            # Add date column configurations
+            # Add date column configurations if they exist
+            date_columns = [col for col in df.columns if any(date_term in col.lower() 
+                          for date_term in ['date', 'calendar', 'earnings', 'dividend', 'ex_date', 'release'])]
+            
             for date_col in date_columns:
                 column_config[date_col] = st.column_config.DateColumn(
                     date_col.replace('_', ' ').title(),
@@ -806,15 +747,7 @@ with tabs[1]:
             if 'Price Band' in df.columns:
                 column_config["Price Band"] = st.column_config.NumberColumn("Price Band", format="%.0f")
 
-            # Add symbol column config dynamically based on which column exists
-            symbol_column = None
-            for col in ['symbol', 'name', 'Stock', 'ticker']:
-                if col in df.columns:
-                    symbol_column = col
-                    column_config[col] = st.column_config.TextColumn("Stock")
-                    break
-
-            # Display results
+            # Display results in a single dataframe
             st.dataframe(
                 df,
                 use_container_width=True,
@@ -849,7 +782,19 @@ with tabs[1]:
                                 value=tickers_simple,
                                 height=100,
                                 help=f"Simple comma-separated tickers ({len(df)} symbols)")
-
+                    st.markdown(
+                        f'<button id="copy-tickers-btn" style="margin-top: 0.5em; padding: 0.5em 1em; background: #222; color: #fff; border: none; border-radius: 4px; cursor: pointer;">📋 Copy <span style=\"font-size:12px\">(to clipboard)</span></button>'
+                        '<script>'
+                        'const btn = window.parent.document.getElementById("copy-tickers-btn");'
+                        'if (btn) {'
+                        'btn.onclick = function() {'
+                        'const ta = window.parent.document.querySelector("textarea[aria-label=\'Copy Tickers (comma-separated)\']");'
+                        'if (ta) {navigator.clipboard.writeText(ta.value);}'
+                        '};'
+                        '}'
+                        '</script>',
+                        unsafe_allow_html=True
+                    )
                 with ticker_col2:
                     tv_formatted = '\n'.join([f"{df['exchange'].iloc[i]}:{row}" if 'exchange' in df.columns else str(row)
                                               for i, row in enumerate(df[ticker_column])])
@@ -888,3 +833,396 @@ with tabs[1]:
 
 st.markdown("---")
 st.caption("TradingView Screener Pro • Built with Streamlit • Created with ❤️")
+
+# Stock News Page
+def render_stock_news():
+    st.markdown("""
+    <div class='page-header'>
+        <h1>📰 Stock News</h1>
+        <p class='subtitle'>Latest market insights and company updates</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("""
+        <div class='content-card'>
+            <h3>📊 Market Overview</h3>
+            <div class='news-filters'>
+                <span class='filter-tag active'>All Markets</span>
+                <span class='filter-tag'>US Stocks</span>
+                <span class='filter-tag'>Crypto</span>
+                <span class='filter-tag'>Forex</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("""
+        <div class='content-card'>
+            <h3>🔍 Quick Filters</h3>
+            <div class='quick-filters'>
+                <div class='filter-item'>
+                    <span class='material-icons'>trending_up</span>
+                    Top Gainers
+                </div>
+                <div class='filter-item'>
+                    <span class='material-icons'>trending_down</span>
+                    Top Losers
+                </div>
+                <div class='filter-item'>
+                    <span class='material-icons'>volume_up</span>
+                    High Volume
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# Price Bands Page
+def render_price_bands():
+    st.markdown("""
+    <div class='page-header'>
+        <h1>💹 Price Bands</h1>
+        <p class='subtitle'>Track and analyze price movements across bands</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col1:
+        st.markdown("""
+        <div class='content-card'>
+            <h3>📊 Band Distribution</h3>
+            <div class='band-stats'>
+                <div class='stat-item'>
+                    <span class='stat-label'>Band A</span>
+                    <span class='stat-value'>45%</span>
+                </div>
+                <div class='stat-item'>
+                    <span class='stat-label'>Band B</span>
+                    <span class='stat-value'>30%</span>
+                </div>
+                <div class='stat-item'>
+                    <span class='stat-label'>Band C</span>
+                    <span class='stat-value'>25%</span>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("""
+        <div class='content-card'>
+            <h3>📈 Band Analysis</h3>
+            <div class='band-filters'>
+                <div class='filter-group'>
+                    <label>Select Band</label>
+                    <select class='modern-select'>
+                        <option>All Bands</option>
+                        <option>Band A</option>
+                        <option>Band B</option>
+                        <option>Band C</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col3:
+        st.markdown("""
+        <div class='content-card'>
+            <h3>🎯 Quick Actions</h3>
+            <div class='action-buttons'>
+                <button class='action-btn primary'>Export Data</button>
+                <button class='action-btn secondary'>Save View</button>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# Results Page
+def render_results():
+    st.markdown("""
+    <div class='page-header'>
+        <h1>📊 Screening Results</h1>
+        <p class='subtitle'>Analyze your screening results with advanced filters</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Results Toolbar
+    st.markdown("""
+    <div class='results-toolbar'>
+        <div class='toolbar-section'>
+            <span class='material-icons'>filter_list</span>
+            <select class='modern-select'>
+                <option>All Markets</option>
+                <option>Stocks</option>
+                <option>Crypto</option>
+                <option>Forex</option>
+            </select>
+        </div>
+        <div class='toolbar-section'>
+            <span class='material-icons'>sort</span>
+            <select class='modern-select'>
+                <option>Sort by Volume</option>
+                <option>Sort by Price</option>
+                <option>Sort by Change %</option>
+            </select>
+        </div>
+        <div class='toolbar-actions'>
+            <button class='action-btn'><span class='material-icons'>file_download</span> Export</button>
+            <button class='action-btn'><span class='material-icons'>refresh</span> Refresh</button>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Add CSS for the new components
+st.markdown("""
+<style>
+/* Page Header */
+.page-header {
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.page-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #ffffff;
+}
+
+.subtitle {
+    font-size: 1.1rem;
+    color: rgba(255,255,255,0.7);
+}
+
+/* Content Cards */
+.content-card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.3s ease;
+}
+
+.content-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+
+.content-card h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #ffffff;
+}
+
+/* Filters */
+.filter-tag {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    margin: 0.25rem;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.8);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.filter-tag.active {
+    background: #2962ff;
+    color: white;
+}
+
+.filter-tag:hover {
+    background: rgba(41,98,255,0.3);
+}
+
+/* Quick Filters */
+.quick-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.filter-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.filter-item:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+/* Band Stats */
+.band-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+}
+
+.stat-value {
+    font-weight: 600;
+    color: #2962ff;
+}
+
+/* Modern Select */
+.modern-select {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: white;
+    appearance: none;
+    cursor: pointer;
+}
+
+/* Action Buttons */
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.action-btn.primary {
+    background: #2962ff;
+    color: white;
+}
+
+.action-btn.secondary {
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* Results Toolbar */
+.results-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.toolbar-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Material Icons */
+.material-icons {
+    font-size: 20px;
+    color: rgba(255,255,255,0.8);
+}
+
+/* Adjust container widths for centered layout */
+.screener-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.content-card {
+    max-width: 100%;
+    margin-bottom: 1rem;
+}
+
+/* Adjust column layouts */
+.stColumns {
+    gap: 1rem;
+}
+
+/* Make dataframes and charts responsive */
+.stDataFrame {
+    width: 100%;
+    max-width: 100%;
+}
+
+.element-container {
+    width: 100%;
+}
+
+/* Adjust metrics for smaller width */
+.stMetric {
+    width: 100%;
+}
+
+/* Make buttons full width on smaller screens */
+@media (max-width: 768px) {
+    .stButton > button {
+        width: 100%;
+    }
+}
+
+/* Adjust card padding for smaller screens */
+@media (max-width: 768px) {
+    .content-card {
+        padding: 1rem;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Navigation Logic
+if 'page' not in st.session_state:
+    st.session_state.page = 'scanner'
+
+# Sidebar Navigation
+st.sidebar.markdown("<div class='nav-section'>", unsafe_allow_html=True)
+if st.sidebar.button("🧮 Advanced Scanner", use_container_width=True):
+    st.session_state.page = 'scanner'
+if st.sidebar.button("📰 Stock News", use_container_width=True):
+    st.session_state.page = 'news'
+if st.sidebar.button("💹 Price Bands", use_container_width=True):
+    st.session_state.page = 'bands'
+if st.sidebar.button("📅 Results", use_container_width=True):
+    st.session_state.page = 'results'
+st.sidebar.markdown("</div>", unsafe_allow_html=True)
+
+# Render the selected page
+if st.session_state.page == 'scanner':
+    # Your existing scanner code
+    pass
+elif st.session_state.page == 'news':
+    render_stock_news()
+elif st.session_state.page == 'bands':
+    render_price_bands()
+elif st.session_state.page == 'results':
+    render_results()

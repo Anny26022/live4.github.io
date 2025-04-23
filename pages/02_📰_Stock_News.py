@@ -3,66 +3,117 @@ import pandas as pd
 import io
 import time
 
-# Set the page configuration
+# Page config
 st.set_page_config(
-    page_title="Stock News - TradingView Screener Pro",
+    page_title="Stock News",
     page_icon="📰",
-    layout="wide"
+    layout="centered"
 )
 
-# Title and auto-refresh info
-col1, col2 = st.columns([3, 1])
-with col1:
-    st.title("📰 Stock News")
-with col2:
-    st.markdown("""
-    <div style='text-align: right; margin-top: 20px;'>
-        <span style='background-color: #262730; padding: 10px; border-radius: 5px;'>
-            🔄 Auto-refreshing every 20s
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
+# Load custom CSS
+try:
+    with open('style.css') as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+except FileNotFoundError:
+    st.warning("Style file not found. Page will run with default styling.")
 
 # Initialize session state for last update time
 if 'last_update_time' not in st.session_state:
     st.session_state.last_update_time = time.time()
 
-# Fetch news data with auto-refresh
-@st.cache_data(ttl=20)  # Cache expires after 20 seconds
+# --- ALL FUNCTION DEFINITIONS FIRST ---
+@st.cache_data(ttl=300)
 def fetch_stock_news():
     try:
+        # Main news sheet (existing)
         url = "https://docs.google.com/spreadsheets/d/1X6amEBgzjwpbaSST_19z-6zAMbnA4yYpnrYO_faoh_g/gviz/tq?tqx=out:csv&gid=1083642917"
         news_df = pd.read_csv(url)
-        # Clean up column names
         news_df.columns = [col.strip() for col in news_df.columns]
-        st.session_state.last_update_time = time.time()
-        return news_df
+        # --- NEW: Load the additional sheet for Analyst/Result News ---
+        analyst_url = "https://docs.google.com/spreadsheets/d/1X6amEBgzjwpbaSST_19z-6zAMbnA4yYpnrYO_faoh_g/gviz/tq?tqx=out:csv&gid=909294572"
+        analyst_df = pd.read_csv(analyst_url)
+        analyst_df.columns = [col.strip() for col in analyst_df.columns]
+        # Ensure 'SUBCATNAME' column exists in both DataFrames
+        if 'SUBCATNAME' not in news_df.columns:
+            news_df['SUBCATNAME'] = ''
+        if 'SUBCATNAME' not in analyst_df.columns:
+            analyst_df['SUBCATNAME'] = ''
+        # Ensure 'PDF' column exists in both DataFrames
+        if 'PDF' not in news_df.columns:
+            news_df['PDF'] = ''
+        if 'PDF' not in analyst_df.columns:
+            analyst_df['PDF'] = ''
+        # Add a column to distinguish source/type if not present
+        if 'SOURCE' not in news_df.columns:
+            news_df['SOURCE'] = 'Main'
+        if 'SOURCE' not in analyst_df.columns:
+            analyst_df['SOURCE'] = 'Analyst/Result'
+        # Standardize columns for concatenation
+        all_cols = sorted(set(news_df.columns).union(set(analyst_df.columns)))
+        news_df = news_df.reindex(columns=all_cols)
+        analyst_df = analyst_df.reindex(columns=all_cols)
+        
+        # --- Convert Google Drive file IDs to sharable PDF links if needed ---
+        def ensure_pdf_url(val):
+            val = str(val).strip()
+            if val.startswith('http'):
+                return val
+            # If it's a Google Drive file ID, build the URL
+            if val and len(val) >= 20 and '/' not in val and '.' not in val:
+                return f"https://drive.google.com/file/d/{val}/view"
+            return '' if val in ('', 'nan', 'None') else val
+        news_df['PDF'] = news_df['PDF'].apply(ensure_pdf_url)
+        analyst_df['PDF'] = analyst_df['PDF'].apply(ensure_pdf_url)
+        
+        # Concatenate both
+        combined_df = pd.concat([news_df, analyst_df], ignore_index=True)
+        latest_update = ''
+        try:
+            latest_update = str(pd.to_datetime(combined_df['NEWS_DT'], errors='coerce').max())
+        except Exception:
+            latest_update = str(time.time())
+        return combined_df, latest_update
     except Exception as e:
         st.error(f"Error fetching news data: {str(e)}")
-        return pd.DataFrame()
+        return pd.DataFrame(), ''
 
-# Auto-refresh mechanism
-def get_current_news():
-    # Check if 20 seconds have passed since last update
-    if time.time() - st.session_state.last_update_time >= 20:
-        # Clear the cache to force a refresh
+# --- UI LAYOUT BELOW ---
+# Title, Refresh Button, and Auto-refresh info in a single row
+col1, col2, col3 = st.columns([3, 1, 2])
+with col1:
+    st.title("📰 Stock News")
+with col2:
+    if st.button("🔄 Refresh Now", key="refresh_now"):
         fetch_stock_news.clear()
-    return fetch_stock_news()
+        st.rerun()
+with col3:
+    st.markdown(
+        """
+        <div style='display: flex; align-items: center; height: 100%; justify-content: flex-end;'>
+            <span style='background-color: #262730; padding: 10px 16px; border-radius: 5px; font-size: 1rem;'>
+                🔄 Auto-refreshing every 5m
+            </span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # Get the news data
-news_df = get_current_news()
-
-# Add a refresh button for manual refresh
-if st.button("🔄 Refresh Now"):
-    fetch_stock_news.clear()
-    news_df = fetch_stock_news()
-    st.success("Data refreshed!")
+news_df, news_last_update = fetch_stock_news()
+if 'news_last_seen_update' not in st.session_state:
+    st.session_state['news_last_seen_update'] = news_last_update
+if news_last_update != st.session_state['news_last_seen_update']:
+    st.info('New stock news data is available!')
+    if st.button('Reload News Data'):
+        fetch_stock_news.clear()
+        st.session_state['news_last_seen_update'] = news_last_update
+        st.rerun()
 
 if not news_df.empty:
-    # Add filters at the top
+    # Add filters at the top with adjusted ratios
     st.subheader("🔍 Filter News")
     
-    col1, col2 = st.columns([1, 1])
+    col1, col2 = st.columns([2, 1])
     
     with col1:
         # Filter by date
@@ -86,10 +137,19 @@ if not news_df.empty:
     with col2:
         # Filter by category
         if 'CATEGORYNAME' in news_df.columns:
-            categories = ['All'] + sorted(news_df['CATEGORYNAME'].unique().tolist())
+            # Remove NaN, convert to str, filter out empty/None, then sort as string
+            categories_raw = news_df['CATEGORYNAME'].dropna().astype(str).unique().tolist()
+            categories = ['All'] + sorted([c for c in categories_raw if c.strip() != ''])
             selected_category = st.selectbox("Select Category", categories)
             if selected_category != 'All':
                 news_df = news_df[news_df['CATEGORYNAME'] == selected_category]
+        # Filter by subcategory
+        if 'SUBCATNAME' in news_df.columns:
+            subcats_raw = news_df['SUBCATNAME'].dropna().astype(str).unique().tolist()
+            subcats = ['All'] + sorted([s for s in subcats_raw if s.strip() != ''])
+            selected_subcat = st.selectbox("Select Subcategory", subcats)
+            if selected_subcat != 'All':
+                news_df = news_df[news_df['SUBCATNAME'] == selected_subcat]
 
     # Search box for company/news
     search_term = st.text_input("🔍 Search by Company Name or News Content")
@@ -111,13 +171,18 @@ if not news_df.empty:
         'NSE_SYM': 'Symbol',
         'SLONGNAME': 'Company',
         'CATEGORYNAME': 'Category',
+        'SUBCATNAME': 'Subcategory',
         'HEADLINE': 'Headline',
+        'PDF': 'PDF',
         'Sales TTM Cr': 'Sales (TTM) Cr',
         'OPM %': 'OPM %',
+        'NPM %': 'NPM %',
+        'ROCE %': 'ROCE %',
         'QoQ Sales %': 'QoQ Sales %',
         'QoQ Profits %': 'QoQ Profits %',
         'YoY Sales %': 'YoY Sales %',
-        'YoY Profit %': 'YoY Profit %'
+        'YoY Profit %': 'YoY Profit %',
+        'SOURCE': 'Source'
     }
 
     # Only show columns that exist in the dataframe
@@ -129,13 +194,18 @@ if not news_df.empty:
         'NSE_SYM': st.column_config.TextColumn('Symbol'),
         'SLONGNAME': st.column_config.TextColumn('Company'),
         'CATEGORYNAME': st.column_config.TextColumn('Category'),
+        'SUBCATNAME': st.column_config.TextColumn('Subcategory'),
         'HEADLINE': st.column_config.TextColumn('Headline', width='large'),
+        'PDF': st.column_config.LinkColumn('PDF', display_text='PDF'),
         'Sales TTM Cr': st.column_config.NumberColumn('Sales (TTM) Cr', format="%.2f"),
         'OPM %': st.column_config.NumberColumn('OPM %', format="%.2f"),
+        'NPM %': st.column_config.NumberColumn('NPM %', format="%.2f"),
+        'ROCE %': st.column_config.NumberColumn('ROCE %', format="%.2f"),
         'QoQ Sales %': st.column_config.NumberColumn('QoQ Sales %', format="%.2f"),
         'QoQ Profits %': st.column_config.NumberColumn('QoQ Profits %', format="%.2f"),
         'YoY Sales %': st.column_config.NumberColumn('YoY Sales %', format="%.2f"),
-        'YoY Profit %': st.column_config.NumberColumn('YoY Profit %', format="%.2f")
+        'YoY Profit %': st.column_config.NumberColumn('YoY Profit %', format="%.2f"),
+        'SOURCE': st.column_config.TextColumn('Source')
     }
 
     # Display the news dataframe
@@ -180,10 +250,201 @@ st.markdown("""
     function reload() {
         window.location.reload();
     }
-    setTimeout(reload, 20000);
+    setTimeout(reload, 300000);
 </script>
 """, unsafe_allow_html=True)
 
 # Footer
 st.markdown("---")
-st.caption("TradingView Screener Pro • Built with Streamlit • Created with ❤️") 
+st.caption("TradingView Screener Pro • Built with Streamlit • Created with ❤️")
+
+# Page Header
+st.markdown("""
+<div class='page-header'>
+    <h1>📰 Stock News</h1>
+    <p class='subtitle'>Latest market insights and company updates</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Main Content
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    # Market Overview Card
+    st.markdown("""
+    <div class='content-card'>
+        <h3>📊 Market Overview</h3>
+        <div class='news-filters'>
+            <span class='filter-tag active'>All Markets</span>
+            <span class='filter-tag'>US Stocks</span>
+            <span class='filter-tag'>Crypto</span>
+            <span class='filter-tag'>Forex</span>
+        </div>
+        <!-- Optionally add a summary or leave empty for a clean look -->
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    # Quick Filters Card
+    st.markdown("""
+    <div class='content-card'>
+        <h3>🔍 Quick Filters</h3>
+        <div class='quick-filters'>
+            <!-- Removed static filter-item icons and labels -->
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Market Sentiment Card
+    st.markdown("""
+    <div class='content-card'>
+        <h3>📈 Market Sentiment</h3>
+        <div class='sentiment-indicators'>
+            <div class='sentiment-item'>
+                <span class='sentiment-label'>Fear & Greed Index</span>
+                <div class='sentiment-value positive'>65</div>
+            </div>
+            <div class='sentiment-item'>
+                <span class='sentiment-label'>Market Volatility</span>
+                <div class='sentiment-value neutral'>Medium</div>
+            </div>
+            <div class='sentiment-item'>
+                <span class='sentiment-label'>Trend Strength</span>
+                <div class='sentiment-value positive'>Strong</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Additional CSS for news-specific components
+st.markdown("""
+<style>
+/* News Items */
+.news-list {
+    margin-top: 1.5rem;
+}
+
+.news-item {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.3s ease;
+}
+
+.news-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.news-time {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.6);
+    margin-right: 1rem;
+}
+
+.news-category {
+    font-size: 0.8rem;
+    color: #2962ff;
+    background: rgba(41,98,255,0.1);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+
+.news-headline {
+    margin-top: 0.5rem;
+    font-size: 1rem;
+    color: rgba(255,255,255,0.9);
+}
+
+/* Sentiment Indicators */
+.sentiment-indicators {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.sentiment-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+}
+
+.sentiment-label {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.8);
+}
+
+.sentiment-value {
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+}
+
+.sentiment-value.positive {
+    background: rgba(46,204,113,0.2);
+    color: #2ecc71;
+}
+
+.sentiment-value.neutral {
+    background: rgba(241,196,15,0.2);
+    color: #f1c40f;
+}
+
+.sentiment-value.negative {
+    background: rgba(231,76,60,0.2);
+    color: #e74c3c;
+}
+
+/* Adjust container widths for centered layout */
+.content-card {
+    max-width: 100%;
+    margin-bottom: 1rem;
+}
+
+/* Adjust column layouts */
+.stColumns {
+    gap: 1rem;
+}
+
+/* Make dataframes and charts responsive */
+.stDataFrame {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Adjust metrics for smaller width */
+.stMetric {
+    width: 100%;
+}
+
+/* Make buttons full width on smaller screens */
+@media (max-width: 768px) {
+    .stButton > button {
+        width: 100%;
+    }
+    .stSelectbox, .stDateInput {
+        width: 100%;
+    }
+}
+
+/* Adjust card padding for smaller screens */
+@media (max-width: 768px) {
+    .content-card {
+        padding: 1rem;
+    }
+}
+
+/* Adjust news items for better readability */
+.news-item {
+    max-width: 100%;
+}
+
+/* Make filter tags wrap better */
+.news-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+</style>
+""", unsafe_allow_html=True) 

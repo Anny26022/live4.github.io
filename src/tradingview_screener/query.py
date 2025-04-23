@@ -3,6 +3,7 @@ from __future__ import annotations
 __all__ = ['And', 'Or', 'Query']
 
 import pprint
+import requests
 from typing import TYPE_CHECKING
 
 import requests
@@ -631,15 +632,10 @@ class Query:
     def copy(self) -> Query:
         new = Query()
         new.query = self.query.copy()
-        return new
+        return self
 
     def __repr__(self) -> str:
         return f'< {pprint.pformat(self.query)}\n url={self.url!r} >'
 
     def __eq__(self, other) -> bool:
         return isinstance(other, Query) and self.query == other.query and self.url == other.url
-
-
-# TODO: Query should have no defaults (except limit), and a separate module should have all the
-#  default screeners
-# TODO: add all presets
