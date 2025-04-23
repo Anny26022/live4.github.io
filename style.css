@@ -99,13 +99,6 @@ h1 {
   animation: pulse 1s ease-in-out;
 }
 
-.custom-card h4 {
-  color: var(--primary-color);
-  margin-bottom: 1rem;
-  font-weight: 600;
-  animation: slideIn 0.5s ease-out;
-}
-
 /* Section Headers */
 .section-header {
   color: var(--text-primary);

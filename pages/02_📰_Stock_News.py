@@ -280,7 +280,23 @@ with col1:
             <span class='filter-tag'>Crypto</span>
             <span class='filter-tag'>Forex</span>
         </div>
-        <!-- Optionally add a summary or leave empty for a clean look -->
+        <div class='news-list'>
+            <div class='news-item'>
+                <span class='news-time'>10:30 AM</span>
+                <span class='news-category'>Market Update</span>
+                <p class='news-headline'>Major indices showing strong momentum in morning trading</p>
+            </div>
+            <div class='news-item'>
+                <span class='news-time'>09:45 AM</span>
+                <span class='news-category'>Economic Data</span>
+                <p class='news-headline'>Consumer confidence index beats expectations</p>
+            </div>
+            <div class='news-item'>
+                <span class='news-time'>09:15 AM</span>
+                <span class='news-category'>Company News</span>
+                <p class='news-headline'>Tech sector leads gains with strong earnings reports</p>
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -290,7 +306,22 @@ with col2:
     <div class='content-card'>
         <h3>🔍 Quick Filters</h3>
         <div class='quick-filters'>
-            <!-- Removed static filter-item icons and labels -->
+            <div class='filter-item'>
+                <span class='material-icons'>trending_up</span>
+                Top Gainers
+            </div>
+            <div class='filter-item'>
+                <span class='material-icons'>trending_down</span>
+                Top Losers
+            </div>
+            <div class='filter-item'>
+                <span class='material-icons'>volume_up</span>
+                High Volume
+            </div>
+            <div class='filter-item'>
+                <span class='material-icons'>star</span>
+                Most Active
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)

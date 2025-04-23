@@ -158,7 +158,7 @@ count, data = screener.get_scanner_data()
     st.markdown("---")
     st.markdown("Built with ❤️ using Python and Streamlit")
 
-# --- SIDEBAR: Help/Docs ---
+# --- Sidebar: Help/Docs ---
 st.sidebar.markdown("""
 <div class='sidebar-header'>
     <h1>📚 Documentation</h1>
@@ -1206,13 +1206,13 @@ if 'page' not in st.session_state:
 
 # Sidebar Navigation
 st.sidebar.markdown("<div class='nav-section'>", unsafe_allow_html=True)
-if st.sidebar.button("🧮 Advanced Scanner", use_container_width=True):
+if st.sidebar.button("📊 Advanced Scanner", use_container_width=True):
     st.session_state.page = 'scanner'
 if st.sidebar.button("📰 Stock News", use_container_width=True):
     st.session_state.page = 'news'
 if st.sidebar.button("💹 Price Bands", use_container_width=True):
     st.session_state.page = 'bands'
-if st.sidebar.button("📅 Results", use_container_width=True):
+if st.sidebar.button("📈 Results", use_container_width=True):
     st.session_state.page = 'results'
 st.sidebar.markdown("</div>", unsafe_allow_html=True)
 
