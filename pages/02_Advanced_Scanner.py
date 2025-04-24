@@ -60,15 +60,15 @@ except Exception:
 if is_wide:
     with st.container():
         param_col, results_col = st.columns([1.1, 2], gap="large")
+        
         with param_col:
             st.markdown("<div class='parameter-card'><h4>Scanner Parameters</h4></div>", unsafe_allow_html=True)
-            # Place all parameter widgets here (e.g., exchange filter, sliders, checkboxes)
-            # Example:
+            # Place all parameter widgets here
             st.subheader("Exchange Filter")
             selected_exchanges = st.multiselect("Select exchanges", ["NSE", "BSE"], default=["NSE"])
             st.subheader("Volume Analysis")
             min_rel_vol = st.slider("Minimum Relative Volume", 1.0, 5.0, 1.2, step=0.05)
-            # Add more parameter widgets as needed
+        
         with results_col:
             # Remove card for results on wide screens for max width
             st.markdown("<div style='padding:0;margin:0;'>", unsafe_allow_html=True)
@@ -140,6 +140,9 @@ if is_wide:
                             count = 0
                         
                         if not df.empty:
+                            # Process and display results
+                            st.success(f"Found {count} stocks matching criteria")
+                            
                             # Calculate percentage above each EMA
                             df['Above_EMA50%'] = ((df['close'] - df['EMA50']) / df['EMA50'] * 100).round(2)
                             df['Above_EMA150%'] = ((df['close'] - df['EMA150']) / df['EMA150'] * 100).round(2)
@@ -152,7 +155,7 @@ if is_wide:
                             df['Rel_Volume'] = df['relative_volume_10d_calc'].round(2)
                             
                             # Format market cap to display in Crores
-                            df['Market_Cap_Cr'] = (df['market_cap_basic'] / 10000000).round(2)  # Convert to Crores
+                            df['Market_Cap_Cr'] = (df['market_cap_basic'] / 10000000).round(2)
                             
                             # Format performance columns
                             df['1M_Perf'] = df['Perf.1M'].round(2)
@@ -193,188 +196,15 @@ if is_wide:
                                 'Rel_Volume': 'Rel Volume'
                             })
                             
-                            # Use extra spacing and padding for the results table
-                            st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
-                            st.dataframe(
-                                display_df,
-                                use_container_width=True,
-                                hide_index=True,
-                                column_config={
-                                    'Rel Volume': st.column_config.NumberColumn('Rel Volume', width='large'),
-                                    'MCap (Cr)': st.column_config.NumberColumn('MCap (Cr)', width='large'),
-                                    'Float %': st.column_config.NumberColumn('Float %', width='medium'),
-                                    '1M %': st.column_config.NumberColumn('1M %', width='medium'),
-                                    '3M %': st.column_config.NumberColumn('3M %', width='medium'),
-                                    '% from 52W High': st.column_config.NumberColumn('% from 52W High', width='medium')
-                                }
-                            )
-                            st.download_button(
-                                "📥 Export Results",
-                                display_df.to_csv(index=False),
-                                "scanner_results.csv",
-                                "text/csv",
-                                use_container_width=True
-                            )
-                            # Add more vertical space after table
-                            st.markdown("<div style='margin-bottom: 1.2rem;'></div>", unsafe_allow_html=True)
-                            # Place other results/metrics/plots here as needed
+                            # Display results
+                            st.dataframe(display_df, use_container_width=True)
                         else:
-                            st.warning("No NSE stocks found trading above all EMAs. Try during market hours.")
-                            
+                            st.warning("No stocks found matching the criteria")
                     except Exception as e:
-                        st.error(f"Error executing scan: {str(e)}")
-                        st.code(str(e), language="python") 
-            st.markdown("</div>", unsafe_allow_html=True)
+                        st.error(f"Error running scanner: {str(e)}")
+                        st.info("Please try adjusting the parameters or try again later.")
 else:
-    st.markdown("<div class='parameter-card'><h4>Scanner Parameters</h4></div>", unsafe_allow_html=True)
-    # Place all parameter widgets here (e.g., exchange filter, sliders, checkboxes)
-    # Example:
-    st.subheader("Exchange Filter")
-    selected_exchanges = st.multiselect("Select exchanges", ["NSE", "BSE"], default=["NSE"])
-    st.subheader("Volume Analysis")
-    min_rel_vol = st.slider("Minimum Relative Volume", 1.0, 5.0, 1.2, step=0.05)
-    # Add more parameter widgets as needed
-    st.markdown("<div class='results-card'><h4>📊 Scanner Results</h4></div>", unsafe_allow_html=True)
-    # Only show results if scan has been run
-    if st.button("🔍 Run NSE Multi-EMA Scan", type="primary", use_container_width=True, key="run_scan"):
-        with st.spinner("Scanning NSE stocks above multiple EMAs..."):
-            try:
-                q = (
-                    Query()
-                    .set_markets('india')
-                    .select(
-                        'name', 'close', 
-                        'EMA50', 'EMA150', 'EMA200',
-                        'exchange', 'type',
-                        'relative_volume_10d_calc',
-                        'is_primary',
-                        'sector', 'industry',
-                        'Perf.1M',  # 1-month performance
-                        'Perf.3M',  # 3-month performance
-                        'market_cap_basic',  # Market Cap
-                        'price_52_week_high',  # 52-week high
-                        'float_shares_outstanding',  # Float shares
-                        'total_shares_outstanding',  # Total shares
-                        'RSI'  # Adding RSI for analysis
-                    )
-                    .where(
-                        # Exchange and type filters
-                        col('exchange') == 'NSE',
-                        col('type') == 'stock',
-                        col('is_primary') == True,
-                        
-                        # Price filter
-                        col('close') > 20,
-                        
-                        # EMA conditions
-                        col('close') > col('EMA50'),
-                        col('close') > col('EMA150'),
-                        col('close') > col('EMA200')
-                    )
-                    .order_by('relative_volume_10d_calc', ascending=False)
-                )
-                
-                # Batch fetching to get all results
-                batch_size = 1000
-                max_rows = 5000  # Set a high limit
-                dfs = []
-                total_count = None
-                
-                for offset in range(0, max_rows, batch_size):
-                    q_batch = q.offset(offset).limit(batch_size)
-                    count, df_batch = q_batch.get_scanner_data()
-                    
-                    if total_count is None:
-                        total_count = count
-                    
-                    if df_batch is not None and not df_batch.empty:
-                        dfs.append(df_batch)
-                        if len(df_batch) < batch_size:  # Got all results
-                            break
-                    else:
-                        break
-                
-                # Combine all batches
-                if dfs:
-                    df = pd.concat(dfs, ignore_index=True)
-                    count = total_count  # Use the total count from first batch
-                else:
-                    df = pd.DataFrame()
-                    count = 0
-                
-                if not df.empty:
-                    # Calculate percentage above each EMA
-                    df['Above_EMA50%'] = ((df['close'] - df['EMA50']) / df['EMA50'] * 100).round(2)
-                    df['Above_EMA150%'] = ((df['close'] - df['EMA150']) / df['EMA150'] * 100).round(2)
-                    df['Above_EMA200%'] = ((df['close'] - df['EMA200']) / df['EMA200'] * 100).round(2)
-                    
-                    # Calculate percentage from 52-week high
-                    df['From_52WH%'] = ((df['price_52_week_high'] - df['close']) / df['price_52_week_high'] * 100).round(2)
-                    
-                    # Format relative volume
-                    df['Rel_Volume'] = df['relative_volume_10d_calc'].round(2)
-                    
-                    # Format market cap to display in Crores
-                    df['Market_Cap_Cr'] = (df['market_cap_basic'] / 10000000).round(2)  # Convert to Crores
-                    
-                    # Format performance columns
-                    df['1M_Perf'] = df['Perf.1M'].round(2)
-                    df['3M_Perf'] = df['Perf.3M'].round(2)
-                    
-                    # Calculate float shares as percentage of total shares
-                    df['Float_Shares%'] = (df['float_shares_outstanding'] / df['total_shares_outstanding'] * 100).round(2)
-                    
-                    # Select and rename columns for display
-                    display_cols = [
-                        'name', 'close', 'is_primary',
-                        'sector', 'industry',
-                        'Above_EMA50%', 'Above_EMA150%', 'Above_EMA200%',
-                        '1M_Perf', '3M_Perf',
-                        'From_52WH%',
-                        'Float_Shares%',
-                        'Market_Cap_Cr',
-                        'Rel_Volume'
-                    ]
-                    
-                    # Add NSE: prefix to stock names
-                    df['name'] = 'NSE:' + df['name']
-                    
-                    display_df = df[display_cols].rename(columns={
-                        'name': 'Stock',
-                        'close': 'Price',
-                        'is_primary': 'Primary',
-                        'sector': 'Sector',
-                        'industry': 'Industry',
-                        'Above_EMA50%': '% > EMA50',
-                        'Above_EMA150%': '% > EMA150',
-                        'Above_EMA200%': '% > EMA200',
-                        '1M_Perf': '1M %',
-                        '3M_Perf': '3M %',
-                        'From_52WH%': '% from 52W High',
-                        'Float_Shares%': 'Float %',
-                        'Market_Cap_Cr': 'MCap (Cr)',
-                        'Rel_Volume': 'Rel Volume'
-                    })
-                    
-                    # Use extra spacing and padding for the results table
-                    st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
-                    st.dataframe(display_df, use_container_width=True, hide_index=True)
-                    st.download_button(
-                        "📥 Export Results",
-                        display_df.to_csv(index=False),
-                        "scanner_results.csv",
-                        "text/csv",
-                        use_container_width=True
-                    )
-                    # Add more vertical space after table
-                    st.markdown("<div style='margin-bottom: 1.2rem;'></div>", unsafe_allow_html=True)
-                    # Place other results/metrics/plots here as needed
-                else:
-                    st.warning("No NSE stocks found trading above all EMAs. Try during market hours.")
-                    
-            except Exception as e:
-                st.error(f"Error executing scan: {str(e)}")
-                st.code(str(e), language="python") 
+    st.warning("Your screen width is too narrow for optimal viewing. Please use a wider screen or desktop device for the best experience.")
 
 # Add or update CSS for padding, card separation, and responsive layout
 st.markdown("""
@@ -671,93 +501,306 @@ with main_col1:
                         "text/csv",
                         use_container_width=True
                     )
-                    
-                else:
-                    st.warning("No stocks found matching the criteria. Try adjusting the filters.")
-                    
+                
             except Exception as e:
                 st.error(f"Error running scanner: {str(e)}")
                 st.info("Please try adjusting the parameters or try again later.")
 
-# Add custom CSS for modern styling
+# Add professional CSS styling and animations
 st.markdown("""
 <style>
+/* Modern Color Variables */
+:root {
+    --primary: rgba(28, 131, 225, 1);
+    --primary-light: rgba(28, 131, 225, 0.1);
+    --primary-dark: rgba(20, 92, 158, 1);
+    --accent: rgba(255, 159, 67, 1);
+    --success: rgba(46, 213, 115, 1);
+    --error: rgba(255, 71, 87, 1);
+    --bg-dark: rgba(30, 30, 30, 0.95);
+    --bg-card: rgba(240, 242, 246, 0.05);
+    --text-primary: rgba(255, 255, 255, 0.9);
+    --text-secondary: rgba(255, 255, 255, 0.7);
+}
+
+/* Glass Morphism Effect */
+.glass-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* Enhanced Card Designs */
 .scanner-info-card {
-    background-color: rgba(28, 131, 225, 0.1);
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
 }
 
-.scanner-info-card h3 {
-    color: #1C83E1;
-    margin-bottom: 15px;
+.scanner-info-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    transform: scaleX(0);
+    transition: transform 0.4s ease;
 }
 
-.scanner-info-card ul {
-    list-style-type: none;
-    padding-left: 0;
+.scanner-info-card:hover::before {
+    transform: scaleX(1);
 }
 
-.scanner-info-card li {
-    margin-bottom: 10px;
-    padding-left: 25px;
+.scanner-info-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Sophisticated Button Styles */
+.stButton > button {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.stButton > button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease;
+}
+
+.stButton > button:hover::before {
+    width: 300%;
+    height: 300%;
+}
+
+/* Advanced Table Styling */
+.stDataFrame {
+    border-radius: 12px;
+    overflow: hidden;
+    animation: slideUp 0.5s ease-out;
+}
+
+.stDataFrame table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+
+.stDataFrame thead th {
+    background: var(--bg-dark);
+    padding: 12px 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--primary-light);
+}
+
+.stDataFrame tbody tr {
+    transition: all 0.3s ease;
+}
+
+.stDataFrame tbody tr:hover {
+    background: var(--primary-light);
+    transform: scale(1.01);
+}
+
+/* Animated Metrics */
+.stMetric {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.3s ease;
+}
+
+.stMetric:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading Animation */
+@keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+}
+
+.stSpinner {
+    background: linear-gradient(90deg, var(--bg-card) 0%, var(--primary-light) 50%, var(--bg-card) 100%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+}
+
+/* Progress Bars */
+.stProgress > div > div {
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    border-radius: 8px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dropdown Enhancements */
+.stSelectbox select {
+    background: var(--bg-card);
+    border: 1px solid var(--primary-light);
+    border-radius: 8px;
+    padding: 8px 16px;
+    transition: all 0.3s ease;
+}
+
+.stSelectbox select:hover {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+/* Slider Styling */
+.stSlider input {
+    accent-color: var(--primary);
+}
+
+.stSlider input::-webkit-slider-thumb {
+    box-shadow: 0 0 10px var(--primary);
+}
+
+/* Success/Error Messages */
+.stSuccess {
+    background: linear-gradient(135deg, var(--success), rgba(46, 213, 115, 0.8));
+    border-radius: 8px;
+    padding: 16px;
+    animation: slideIn 0.5s ease-out;
+}
+
+.stError {
+    background: linear-gradient(135deg, var(--error), rgba(255, 71, 87, 0.8));
+    border-radius: 8px;
+    padding: 16px;
+    animation: shake 0.5s ease-in-out;
+}
+
+/* Advanced Animations */
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-5px); }
+    40%, 80% { transform: translateX(5px); }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(28, 131, 225, 0.4); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(28, 131, 225, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(28, 131, 225, 0); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .scanner-info-card {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .stButton > button {
+        padding: 8px 16px;
+    }
+    
+    .stDataFrame thead th {
+        padding: 8px 12px;
+    }
+}
+
+/* Dark Mode Optimizations */
+@media (prefers-color-scheme: dark) {
+    .scanner-info-card {
+        background: var(--bg-card);
+    }
+    
+    .stDataFrame thead th {
+        background: var(--bg-dark);
+    }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-card);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
+
+/* Tooltip Animations */
+[data-tooltip] {
     position: relative;
 }
 
-.scanner-info-card li:before {
-    content: "•";
-    color: #1C83E1;
-    font-weight: bold;
+[data-tooltip]::before {
+    content: attr(data-tooltip);
     position: absolute;
-    left: 10px;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) scale(0);
+    padding: 8px 12px;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    border-radius: 4px;
+    font-size: 12px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    white-space: nowrap;
 }
 
-.parameter-card {
-    background-color: rgba(240, 242, 246, 0.1);
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
+[data-tooltip]:hover::before {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
 }
 
-.results-overview {
-    background-color: rgba(28, 131, 225, 0.1);
-    border-radius: 10px;
-    padding: 20px;
-    margin: 20px 0;
+/* Loading Skeleton Animation */
+@keyframes skeletonLoading {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
 }
 
-/* Improve spacing and readability */
-.stSlider, .stSelectbox {
-    margin-bottom: 25px;
-}
-
-/* Make metrics more prominent */
-.stMetric {
-    background-color: rgba(28, 131, 225, 0.05);
-    padding: 10px;
-    border-radius: 8px;
-}
-
-/* Style the dataframe */
-.stDataFrame {
-    background-color: rgba(240, 242, 246, 0.1);
-    border-radius: 10px;
-    padding: 10px;
-}
-
-/* Add emphasis to the Multi-EMA Scanner section */
-.page-header:first-of-type {
-    border-bottom: 2px solid rgba(28, 131, 225, 0.2);
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-}
-
-/* Style the separator */
-hr {
-    margin: 3rem 0;
-    border: none;
-    border-top: 2px solid rgba(28, 131, 225, 0.1);
+.skeleton {
+    background: linear-gradient(90deg, var(--bg-card) 25%, var(--primary-light) 50%, var(--bg-card) 75%);
+    background-size: 200% 100%;
+    animation: skeletonLoading 1.5s infinite;
 }
 </style>
 """, unsafe_allow_html=True)
