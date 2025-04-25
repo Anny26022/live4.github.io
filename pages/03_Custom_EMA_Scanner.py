@@ -9,12 +9,20 @@ import plotly.graph_objects as go
 from streamlit.components.v1 import html
 import time
 
-# Page Configuration
 st.set_page_config(
-    page_title="Custom EMA Stock Scanner",
+    page_title="Custom EMA Scanner",
+    page_icon="📈",
     layout="centered",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
+
+# Page Configuration
+
+# Initialize price bands in session state if not present
+if 'price_bands_df' not in st.session_state:
+    st.session_state.price_bands_df = pd.DataFrame()
+    st.session_state.bands_last_update = None
+    st.session_state.price_bands_loading = False
 
 # Remove top padding and menu
 st.markdown("""
@@ -29,10 +37,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Import price bands from price_bands.py ---
-from pages.price_bands import fetch_price_bands
-price_bands_df, bands_last_update = fetch_price_bands()
-
 # Custom CSS
 st.markdown("""
 <style>
@@ -45,6 +49,8 @@ st.markdown("""
         --success: #10b981;
         --error: #ef4444;
         --animation-timing: cubic-bezier(0.4, 0, 0.2, 1);
+        --animation-duration: 400ms;
+        --stagger-delay: 50ms;
     }
 
     /* Theme-aware colors */
@@ -60,11 +66,11 @@ st.markdown("""
     /* Animation Keyframes */
     @keyframes slideInUp {
         from {
-            transform: translateY(20px);
+            transform: translate3d(0, 20px, 0);
             opacity: 0;
         }
         to {
-            transform: translateY(0);
+            transform: translate3d(0, 0, 0);
             opacity: 1;
         }
     }
@@ -76,11 +82,11 @@ st.markdown("""
 
     @keyframes scaleIn {
         from {
-            transform: scale(0.95);
+            transform: translate3d(0, 0, 0) scale(0.98);
             opacity: 0;
         }
         to {
-            transform: scale(1);
+            transform: translate3d(0, 0, 0) scale(1);
             opacity: 1;
         }
     }
@@ -99,14 +105,17 @@ st.markdown("""
     .stApp {
         background: var(--bg-dark) !important;
         opacity: 0;
-        animation: fadeIn 0.5s var(--animation-timing) forwards;
+        animation: fadeIn var(--animation-duration) var(--animation-timing) forwards;
+        will-change: opacity;
     }
 
     .block-container {
         padding-top: 2rem !important;
         padding-bottom: 2rem !important;
         max-width: 1000px !important;
-        animation: slideInUp 0.5s var(--animation-timing) forwards;
+        opacity: 0;
+        animation: slideInUp var(--animation-duration) var(--animation-timing) 100ms forwards;
+        will-change: transform, opacity;
     }
 
     /* Header Section with Animation */
@@ -118,9 +127,12 @@ st.markdown("""
         border-radius: 1rem;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         opacity: 0;
-        animation: scaleIn 0.6s var(--animation-timing) forwards;
+        animation: scaleIn var(--animation-duration) var(--animation-timing) 200ms forwards;
         position: relative;
         overflow: hidden;
+        transform: translate3d(0, 0, 0);
+        backface-visibility: hidden;
+        perspective: 1000px;
     }
 
     .header-section::after {
@@ -141,9 +153,10 @@ st.markdown("""
         color: white;
         margin: 0;
         letter-spacing: -0.025em;
-        transform: translateY(20px);
+        transform: translate3d(0, 0, 0);
         opacity: 0;
-        animation: slideInUp 0.6s var(--animation-timing) 0.2s forwards;
+        animation: slideInUp var(--animation-duration) var(--animation-timing) 300ms forwards;
+        will-change: transform, opacity;
     }
 
     .header-subtitle {
@@ -151,9 +164,10 @@ st.markdown("""
         color: rgba(255, 255, 255, 0.9);
         margin-top: 0.5rem;
         font-weight: 400;
-        transform: translateY(20px);
+        transform: translate3d(0, 0, 0);
         opacity: 0;
-        animation: slideInUp 0.6s var(--animation-timing) 0.3s forwards;
+        animation: slideInUp var(--animation-duration) var(--animation-timing) 400ms forwards;
+        will-change: transform, opacity;
     }
 
     /* Filter Card Animations */
@@ -163,14 +177,16 @@ st.markdown("""
         border-radius: 0.75rem;
         padding: 1.25rem;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        transition: all 0.3s var(--animation-timing);
+        transition: transform 200ms var(--animation-timing);
         opacity: 0;
-        animation: scaleIn 0.5s var(--animation-timing) forwards;
+        animation: scaleIn var(--animation-duration) var(--animation-timing) forwards;
         position: relative;
+        transform: translate3d(0, 0, 0);
+        backface-visibility: hidden;
     }
 
     .filter-card:hover {
-        transform: translateY(-2px);
+        transform: translate3d(0, -2px, 0);
         box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
     }
 
@@ -197,7 +213,9 @@ st.markdown("""
     .stTextInput > div > div > input,
     .stNumberInput > div > div > input,
     .stSelectbox > div > div > div {
-        transition: all 0.2s var(--animation-timing);
+        transition: transform 200ms var(--animation-timing),
+                    box-shadow 200ms var(--animation-timing);
+        will-change: transform, box-shadow;
     }
 
     .stTextInput > div > div > input:focus,
@@ -216,9 +234,12 @@ st.markdown("""
         border-radius: 0.5rem;
         font-weight: 600;
         font-size: 0.875rem;
-        transition: all 0.3s var(--animation-timing);
+        transition: transform 200ms var(--animation-timing),
+                    box-shadow 200ms var(--animation-timing);
         position: relative;
         overflow: hidden;
+        transform: translate3d(0, 0, 0);
+        backface-visibility: hidden;
     }
 
     .stButton > button::after {
@@ -235,7 +256,7 @@ st.markdown("""
     }
 
     .stButton > button:hover {
-        transform: translateY(-2px);
+        transform: translate3d(0, -2px, 0);
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
 
@@ -250,7 +271,8 @@ st.markdown("""
 
     /* MultiSelect Animation */
     .stMultiSelect > div > div > div {
-        transition: all 0.2s var(--animation-timing);
+        transition: none !important;
+        animation: none !important;
     }
 
     .stMultiSelect > div > div > div[data-focused="true"] {
@@ -259,7 +281,8 @@ st.markdown("""
 
     /* Checkbox Animation */
     .stCheckbox > label > div[role="checkbox"] {
-        transition: all 0.2s var(--animation-timing);
+        transition: none !important;
+        animation: none !important;
     }
 
     .stCheckbox > label > div[role="checkbox"][data-checked="true"] {
@@ -268,9 +291,10 @@ st.markdown("""
 
     /* Table Row Animations */
     .stDataFrame tbody tr {
-        transition: all 0.2s var(--animation-timing);
         opacity: 0;
-        animation: fadeIn 0.3s var(--animation-timing) forwards;
+        animation: fadeIn 300ms var(--animation-timing) forwards;
+        animation-delay: calc(var(--stagger-delay) * var(--row-index, 0));
+        will-change: opacity, transform;
     }
 
     .stDataFrame tbody tr:hover {
@@ -284,26 +308,32 @@ st.markdown("""
     }
 
     .loading::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        background: linear-gradient(90deg, 
-            transparent 0%, 
-            rgba(var(--text-primary), 0.1) 50%, 
-            transparent 100%);
-        animation: shimmer 1.5s infinite;
+        content: none !important;
+    }
+
+    .shimmer-loader {
+        display: none !important;
     }
 
     /* Responsive Animations */
     @media (prefers-reduced-motion: reduce) {
-        *, ::before, ::after {
+        *,
+        ::before,
+        ::after {
             animation-duration: 0.01ms !important;
             animation-iteration-count: 1 !important;
             transition-duration: 0.01ms !important;
             scroll-behavior: auto !important;
+        }
+        
+        .stApp,
+        .block-container,
+        .header-section,
+        .header-title,
+        .header-subtitle,
+        .filter-card {
+            animation: none !important;
+            opacity: 1 !important;
         }
     }
 
@@ -311,8 +341,11 @@ st.markdown("""
     .filter-section {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 1.25rem;
-        margin-bottom: 1.5rem;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        opacity: 0;
+        animation: fadeIn var(--animation-duration) var(--animation-timing) 500ms forwards;
+        will-change: opacity;
     }
 
     .filter-card {
@@ -659,6 +692,22 @@ st.markdown("""
         flex: 1 !important;
         padding: 0 !important;
     }
+
+    /* Optimize Chart Animations */
+    [data-testid="stChart"] {
+        opacity: 0;
+        animation: fadeIn var(--animation-duration) var(--animation-timing) 600ms forwards;
+        will-change: opacity;
+    }
+
+    /* Remove Unnecessary Transitions */
+    .stMultiSelect [data-baseweb="tag"],
+    .stCheckbox > label > div[role="checkbox"][data-checked="true"],
+    div[data-baseweb="popover"],
+    .stDataFrame thead th {
+        transition: none !important;
+        animation: none !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -818,14 +867,26 @@ with st.container():
 # --- UI: Price Band Filter ---
 st.markdown('<div class="filter-card">', unsafe_allow_html=True)
 st.markdown('<h3 class="filter-title">Price Band</h3>', unsafe_allow_html=True)
-if not price_bands_df.empty:
-    band_options = sorted(price_bands_df['Band'].dropna().unique().tolist())
+
+# Fetch price bands in background after page loads
+if not st.session_state.price_bands_loading and st.session_state.price_bands_df.empty:
+    st.session_state.price_bands_loading = True
+    with st.spinner("Loading price bands..."):
+        from pages.price_bands import fetch_price_bands
+        st.session_state.price_bands_df, st.session_state.bands_last_update = fetch_price_bands()
+        st.session_state.price_bands_loading = False
+        st.rerun()
+
+if not st.session_state.price_bands_df.empty:
+    band_options = sorted(st.session_state.price_bands_df['Band'].dropna().unique().tolist())
     band_options = [f"{int(b)}%" for b in band_options]
     band_options.append("No Band")  # Add 'No Band' option for 'no band'
     default_selected_bands = [x for x in band_options if x in ["10%", "20%", "5%"]]
     selected_bands = st.multiselect("Select Price Band(s) (optional)", band_options, default=default_selected_bands, key="price_band")
 else:
     selected_bands = []
+    if not st.session_state.price_bands_loading:
+        st.info("Price bands will be loaded when you start scanning.")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Centrally map listing_dates.txt ---
@@ -881,15 +942,15 @@ if stock_price_min > 0 or stock_price_max < 150000:
 if selected_exchanges:
     other_filters.append(Column("exchange").isin(selected_exchanges))
 # Price Band filter
-if selected_bands and not price_bands_df.empty:
+if selected_bands and not st.session_state.price_bands_df.empty:
     allowed_symbols = []
     # Add symbols for selected numeric bands
     band_values = [float(b.replace('%','')) for b in selected_bands if b != "No Band"]
     if band_values:
-        allowed_symbols += price_bands_df[price_bands_df['Band'].isin(band_values)]['Symbol'].tolist()
+        allowed_symbols += st.session_state.price_bands_df[st.session_state.price_bands_df['Band'].isin(band_values)]['Symbol'].tolist()
     # Add symbols for 'No Band' selection
     if "No Band" in selected_bands:
-        allowed_symbols += price_bands_df[price_bands_df['Band'].isna()]['Symbol'].tolist()
+        allowed_symbols += st.session_state.price_bands_df[st.session_state.price_bands_df['Band'].isna()]['Symbol'].tolist()
     # Remove duplicates, if any
     allowed_symbols = list(set(allowed_symbols))
     if allowed_symbols:
@@ -909,33 +970,71 @@ if use_float:
 query_filters = ema_filters + [f for f in other_filters if not callable(f)]
 
 # --- Run Query Button ---
-if st.button("Run Scan"):
+st.markdown('<div style="margin-top: 1rem;">', unsafe_allow_html=True)
+
+# Check if price bands are still loading
+if st.session_state.price_bands_loading:
+    st.warning("⌛ Please wait while price bands are loading...")
+    st.button("🚀 Run Query", type="primary", disabled=True, help="Button is disabled while price bands are loading")
+else:
+    run_query_button = st.button(
+        "🚀 Run Query",
+        type="primary",
+        help="Execute the query and fetch results",
+        key="run_query_button"
+    )
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+if run_query_button and not st.session_state.price_bands_loading:
     if contradictory_emas:
         st.error("Cannot run scan with contradictory EMA selections. Please fix your selection.")
     else:
-        q = Query().select("name", "close", "volume", "market_cap_basic", "sector", "industry", "price_52_week_low", "price_52_week_high")
-        # Correct market logic as in Query.set_markets
-        if selected_regions:
-            if len(selected_regions) == 1:
-                q.url = f"https://scanner.tradingview.com/{selected_regions[0]}/scan"
-                q.query['markets'] = [selected_regions[0]]
-            else:
-                q.url = "https://scanner.tradingview.com/global/scan"
-                q.query['markets'] = list(selected_regions)
-        if query_filters:
-            q = q.where(*query_filters)
-        # Set row limit to 20000
-        q = q.limit(20000)
         try:
+            with st.spinner(""):
+                # Show optimized loading animation
+                loading_container = st.empty()
+                loading_container.markdown("""
+                <div class="loading-animation-container" style="text-align: center; padding: 20px;">
+                    <div style="font-size: 1.2rem; color: #4CAF50; margin-bottom: 15px;">🔄 Fetching Results...</div>
+                    <div class="shimmer-loader" style="width: 80%; height: 30px; margin: 10px auto;"></div>
+                    <div class="shimmer-loader" style="width: 60%; height: 30px; margin: 10px auto;"></div>
+                    <div class="shimmer-loader" style="width: 70%; height: 30px; margin: 10px auto;"></div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            q = Query().select("name", "close", "volume", "market_cap_basic", "sector", "industry", "price_52_week_low", "price_52_week_high")
+            # Correct market logic as in Query.set_markets
+            if selected_regions:
+                if len(selected_regions) == 1:
+                    q.url = f"https://scanner.tradingview.com/{selected_regions[0]}/scan"
+                    q.query['markets'] = [selected_regions[0]]
+                else:
+                    q.url = "https://scanner.tradingview.com/global/scan"
+                    q.query['markets'] = list(selected_regions)
+            if query_filters:
+                q = q.where(*query_filters)
+            # Set row limit to 20000
+            q = q.limit(20000)
             count, df = q.get_scanner_data()
+            
+            # Update loading indicator with success message
+            loading_container.markdown(f"""
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 1.2rem; color: #4CAF50;">✅ Successfully fetched {len(df)} results!</div>
+            </div>
+            """, unsafe_allow_html=True)
+            time.sleep(1)  # Brief pause to show success message
+            loading_container.empty()  # Clear the loading message
+
             # --- Update sector/industry options dynamically ---
             if not df.empty:
                 st.session_state['sector_options'] = ["All"] + sorted([x for x in df['sector'].dropna().unique() if x])
                 st.session_state['industry_options'] = ["All"] + sorted([x for x in df['industry'].dropna().unique() if x])
             # --- Merge price band info ---
-            if not df.empty and not price_bands_df.empty:
+            if not df.empty and not st.session_state.price_bands_df.empty:
                 # Merge on symbol/name (assumes df['name'] matches price_bands_df['Symbol'])
-                df = df.merge(price_bands_df.rename(columns={'Symbol': 'name'}), on='name', how='left')
+                df = df.merge(st.session_state.price_bands_df.rename(columns={'Symbol': 'name'}), on='name', how='left')
                 # Display 'No Band' for NaN Band values
                 df['Band'] = df['Band'].apply(lambda x: f"{int(x)}%" if pd.notnull(x) else "No Band")
                 df = df.rename(columns={'Band': 'Price Band'})
@@ -964,7 +1063,7 @@ if 'scan_df' in st.session_state and not st.session_state['scan_df'].empty:
         import numpy as np
         cols = list(df.columns)
         rows_to_add = []
-        no_band_symbols = set(price_bands_df[price_bands_df['Band'].isna()]['Symbol'])
+        no_band_symbols = set(st.session_state.price_bands_df[st.session_state.price_bands_df['Band'].isna()]['Symbol'])
         screener_symbols = set(df['name'])  # Replace df with your main screener DataFrame variable if different
         missing_in_screener = no_band_symbols - screener_symbols
         for sym in missing_in_screener:
@@ -987,6 +1086,72 @@ if 'scan_df' in st.session_state and not st.session_state['scan_df'].empty:
 
     if summary_choice == "Search Results":
         st.dataframe(df)
+        
+        # Add Copy Tickers Section
+        st.markdown("### 📋 Copy Tickers")
+        
+        # Create tabs for different copy formats
+        copy_format_tab1, copy_format_tab2, copy_format_tab3 = st.tabs(["Simple Format", "Industry-wise", "Sector-wise"])
+        
+        with copy_format_tab1:
+            # Simple NSE:SYMBOL format
+            if not df.empty:
+                simple_tickers = ','.join([f"NSE:{symbol}" for symbol in df['name']])
+                st.text_area(
+                    "Copy Tickers (NSE:SYMBOL format)",
+                    value=simple_tickers,
+                    height=100,
+                    help=f"Simple comma-separated tickers ({len(df)} symbols)"
+                )
+        
+        with copy_format_tab2:
+            # Industry-wise categorized format
+            if not df.empty:
+                # Group by industry and sort by count descending
+                industry_groups = df.groupby('industry')['name'].agg(list).reset_index()
+                industry_groups['count'] = industry_groups['name'].apply(len)
+                industry_groups = industry_groups.sort_values('count', ascending=False)
+                
+                # Format the text
+                industry_text = []
+                for _, row in industry_groups.iterrows():
+                    if pd.notna(row['industry']) and row['industry']:  # Check for valid industry name
+                        symbols = [f"NSE:{symbol}" for symbol in row['name']]
+                        industry_text.append(f"###{row['industry']}({row['count']})")
+                        industry_text.append(','.join(symbols))
+                
+                industry_formatted = '\n'.join(industry_text)
+                st.text_area(
+                    "Copy Tickers (Industry-wise)",
+                    value=industry_formatted,
+                    height=300,
+                    help="Tickers categorized by industry"
+                )
+        
+        with copy_format_tab3:
+            # Sector-wise categorized format
+            if not df.empty:
+                # Group by sector and sort by count descending
+                sector_groups = df.groupby('sector')['name'].agg(list).reset_index()
+                sector_groups['count'] = sector_groups['name'].apply(len)
+                sector_groups = sector_groups.sort_values('count', ascending=False)
+                
+                # Format the text
+                sector_text = []
+                for _, row in sector_groups.iterrows():
+                    if pd.notna(row['sector']) and row['sector']:  # Check for valid sector name
+                        symbols = [f"NSE:{symbol}" for symbol in row['name']]
+                        sector_text.append(f"###{row['sector']}({row['count']})")
+                        sector_text.append(','.join(symbols))
+                
+                sector_formatted = '\n'.join(sector_text)
+                st.text_area(
+                    "Copy Tickers (Sector-wise)",
+                    value=sector_formatted,
+                    height=300,
+                    help="Tickers categorized by sector"
+                )
+
     else:
         group_col = 'sector' if summary_choice == "Sector" else 'industry'
         label_title = summary_choice

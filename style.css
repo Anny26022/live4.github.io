@@ -670,38 +670,43 @@ div:has(> .stMarkdown > div > pre > code:contains("[")) {
 }
 
 .nav-section button {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 12px !important;
-    color: rgba(255, 255, 255, 0.8) !important;
-    padding: 1rem !important;
-    margin-bottom: 0.5rem !important;
-    font-size: 1rem !important;
-    font-weight: 500 !important;
-    text-align: left !important;
-    transition: all 0.3s ease !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.75rem !important;
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    width: 100%;
+    text-align: left;
+    transition: all 0.3s ease;
+    font-size: 1.1rem;  /* Increased from default */
+    margin: 8px 0;
+    border-radius: 8px;
 }
 
 .nav-section button:hover {
-    background: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(255, 255, 255, 0.1);
     transform: translateX(4px);
-    border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 .nav-section button[aria-selected="true"] {
-    background: linear-gradient(45deg, #2962ff, #768fff) !important;
-    color: white !important;
-    border-color: transparent !important;
-    box-shadow: 0 4px 12px rgba(41, 98, 255, 0.2) !important;
+    background: linear-gradient(45deg, #2962ff, #768fff);
+    color: white;
+    box-shadow: 0 4px 12px rgba(41, 98, 255, 0.2);
 }
 
-/* Navigation Icons */
+.nav-section button span {
+    margin-left: 12px;
+    font-weight: 500;
+    font-size: 1.1rem;  /* Increased from default */
+}
+
+/* Make icons bigger */
 .nav-section button::before {
-    font-size: 1.25rem !important;
-    opacity: 0.9 !important;
+    font-size: 1.3rem;  /* Increased from default */
+    margin-right: 10px;
+    opacity: 0.9;
 }
 
 /* Active Navigation Indicator */

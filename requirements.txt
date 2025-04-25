@@ -19,3 +19,13 @@ google-auth>=2.20.0
 scikit-learn>=1.2.0
 tqdm>=4.65.0
 # Add any other packages you use below
+lxml>=4.9.0
+memory-profiler>=0.61.0
+pytest-benchmark>=4.0.0
+psutil>=5.9.0
+concurrent-futures>=3.0.0
+typing-extensions>=4.0.0
+aiohttp>=3.8.0
+cachetools>=5.0.0
+# Additional dependencies for price_bands.py
+plotly-express>=0.4.1  # Explicitly adding plotly-express for price_bands.py

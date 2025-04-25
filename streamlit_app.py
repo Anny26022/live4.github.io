@@ -5,53 +5,188 @@ import pandas as pd
 import io
 import requests
 from bs4 import BeautifulSoup
+import subprocess
+from functools import lru_cache
+import numpy as np
+import time
+from typing import Dict, List, Any, Optional
+from src.animation_utils import apply_staggered_animations, staggered_animation
+import os
 
 # --- PAGE CONFIG MUST BE FIRST ---
 st.set_page_config(
     page_title="TradingView Screener Pro",
     page_icon="📈",
     layout="centered",
-    initial_sidebar_state="expanded"  # Sidebar expanded by default on desktop
+    initial_sidebar_state="collapsed"  # Start with sidebar collapsed
 )
+
+# Initialize session state for page navigation if not exists
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = 'Home'
+
+# Add URL redirect check
+current_url = st.query_params.get('page', [''])[0]
+if current_url == 'Advanced_Scanner':
+    st.experimental_set_query_params(page='Custom_EMA_Scanner')
+    st.rerun()
+
+# Define navigation HTML structure
+navigation_html = """
+<div class="glass-navbar">
+    <nav>
+        <ul>
+            <li><a href="." class="nav-link"><i class="material-icons">home</i> Home</a></li>
+            <li><a href="Custom_EMA_Scanner" class="nav-link"><i class="material-icons">show_chart</i> EMA Scanner</a></li>
+            <li><a href="Stock_News" class="nav-link"><i class="material-icons">article</i> Stock News</a></li>
+            <li><a href="NSE_Past_IPO_Issues" class="nav-link"><i class="material-icons">new_releases</i> IPO Issues</a></li>
+            <li><a href="NSE_Volume_Gainers" class="nav-link"><i class="material-icons">trending_up</i> Volume Gainers</a></li>
+            <li><a href="Screener_Company_Financials" class="nav-link"><i class="material-icons">assessment</i> Financials</a></li>
+            <li><a href="price_bands" class="nav-link"><i class="material-icons">price_change</i> Price Bands</a></li>
+            <li><a href="results_calendar" class="nav-link"><i class="material-icons">table_chart</i> Results Calendar</a></li>
+        </ul>
+    </nav>
+</div>
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+    
+    /* Modern Navigation Bar with Glass Morphism */
+    .glass-navbar {
+        background: rgba(32, 33, 35, 0.9);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-radius: 8px;
+        margin: 0 0 20px 0;
+        padding: 4px;
+    }
+    
+    .glass-navbar nav {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .glass-navbar ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        justify-content: center;
+    }
+    
+    .glass-navbar .nav-link {
+        display: flex;
+        align-items: center;
+        color: rgba(255, 255, 255, 0.9);
+        text-decoration: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: background-color 0.2s;
+        white-space: nowrap;
+    }
+    
+    .glass-navbar .nav-link:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .glass-navbar .nav-link .material-icons {
+        font-size: 16px;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+    
+    .glass-navbar .nav-link.active {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    @media (max-width: 768px) {
+        .glass-navbar ul {
+            flex-direction: column;
+        }
+        .glass-navbar .nav-link {
+            justify-content: flex-start;
+            padding: 8px;
+        }
+    }
+</style>
+"""
+
+# Display the navigation bar only once
+st.markdown(navigation_html, unsafe_allow_html=True)
+
+# Remove any duplicate navigation HTML and keep only the styling
+st.markdown("""
+<style>
+    /* Hide Streamlit Sidebar */
+    [data-testid="stSidebar"] {
+        display: none !important;
+    }
+    
+    /* Hide Streamlit Sidebar Toggle Button */
+    button[kind="header"] {
+        display: none !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Apply staggered animations
+apply_staggered_animations()
 
 # Feature flag to enable/disable animations
 USE_ANIMATIONS = True
 
-# Try to import streamlit-lottie, fall back gracefully if not available
-try:
-    from streamlit_lottie import st_lottie
-    LOTTIE_AVAILABLE = True
-except ImportError:
-    LOTTIE_AVAILABLE = False
-    USE_ANIMATIONS = False
+LOTTIE_AVAILABLE = False
 
-# Load our custom CSS
-try:
-    with open('style.css', encoding='utf-8') as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-except FileNotFoundError:
-    # Check if CSS file is in the app directory
+# Cache for expensive operations with optimized performance
+@lru_cache(maxsize=32)
+def load_css() -> str:
+    """Load and cache CSS content with improved performance"""
     try:
-        with open('app/style.css', encoding='utf-8') as f:
-            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+        with open('style.css', encoding='utf-8') as f:
+            return f.read()
     except FileNotFoundError:
+        try:
+            with open('app/style.css', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            return ""
+
+# Load CSS with caching
+css_content = load_css()
+if css_content:
+    st.markdown(f'<style>{css_content}</style>', unsafe_allow_html=True)
+else:
         st.warning("Style file not found. App will run with default styling.")
 
-# Load animations
-def load_lottieurl(url):
-    if not USE_ANIMATIONS:
-        return None
-    try:
-        r = requests.get(url)
-        if r.status_code != 200:
-            return None
-        return r.json()
-    except Exception:
-        return None
+# Optimized Playwright browser install utility
+def playwright_install_ui():
+    if not st.session_state.get('playwright_installed', False):
+        st.markdown("""
+        ### 🛠️ Playwright Browser Installer
+        If you see errors about missing browsers (e.g. Chromium), click the button below to install Playwright browser binaries.
+        """)
+        if st.button("Install Playwright Browsers"):
+            with st.spinner("Installing Playwright browsers..."):
+                result = subprocess.run(["playwright", "install"], capture_output=True, text=True)
+                if result.returncode == 0:
+                    st.session_state.playwright_installed = True
+                    st.success("Playwright browsers installed successfully!")
+                else:
+                    st.error(f"Failed to install browsers:\n{result.stderr}")
 
-# Loading animation for data fetch
-lottie_loading = load_lottieurl('https://assets2.lottiefiles.com/packages/lf20_x62chJ.json')
-lottie_chart = load_lottieurl('https://assets4.lottiefiles.com/packages/lf20_49rdyysj.json')
+# Optimized animation loading with caching
+@lru_cache(maxsize=4)
+def load_lottieurl(url: str) -> Optional[Dict]:
+    """Load and cache Lottie animations - placeholder implementation"""
+    return None
+
+# Pre-load animations
+lottie_loading = None
+lottie_chart = None
 
 # Helper function to create card containers
 def card(title, content, icon="", is_sidebar=False):
@@ -64,182 +199,59 @@ def card(title, content, icon="", is_sidebar=False):
     else:
         st.markdown(f"<div class='{card_class}'><h4>{title}</h4>{content}</div>", unsafe_allow_html=True)
 
-# App title with animation or fallback image
-col1, col2 = st.columns([4, 1])  # Adjusted ratio for better centered layout
-with col1:
-    st.title("TradingView Screener Pro")
-    st.markdown("<p class='app-subtitle'>Advanced market screening with modern UI</p>", unsafe_allow_html=True)
-with col2:
-    if USE_ANIMATIONS and LOTTIE_AVAILABLE and lottie_chart:
-        st_lottie(lottie_chart, height=100, key="chart_animation")  # Reduced height
-    else:
-        # Fallback image if animation is not available
-        st.markdown("<div style='text-align: center; padding-top: 10px;'><span style='font-size: 60px;'>📊</span></div>", unsafe_allow_html=True)
-
-# Session state initialization
-if 'query_results' not in st.session_state:
-    st.session_state.query_results = None
-    st.session_state.last_query_count = 0
-    st.session_state.selected_tab = "build"
-
-# Create tabs for better organization
-tabs = st.tabs(["📝 Build Query", "📊 Results", "ℹ️ About"])
-
-# About section in the About tab
-with tabs[2]:
-    # Title and Description
-    st.title("TradingView Screener Pro")
-    st.markdown("""
-    TradingView Screener is a Python package for creating custom stock, crypto, forex, and asset screeners using TradingView's official API. 
-    It retrieves data directly from TradingView—no web scraping or HTML parsing required.
-    """)
-
-    # Key Features Section
-    st.header("Key Features")
-    
-    col1, col2 = st.columns(2)
-    
+# Optimized app title rendering with animation data attributes
+def render_app_title():
+    col1, col2 = st.columns([4, 1])
     with col1:
-        st.markdown("##### 🔍 Over 3000 Fields")
-        st.markdown("Access OHLC, indicators, fundamental metrics, and much more. Comprehensive data at your fingertips.")
-        
-        st.markdown("##### 🌍 Multiple Markets")
-        st.markdown("Trade across stocks, crypto, forex, CFD, futures, bonds, and more. Global market coverage in one tool.")
-        
-        st.markdown("##### ⏰ Customizable Timeframes")
-        st.markdown("Choose timeframes like 1 minute, 5 minutes, 1 hour, or 1 day for each field. Flexible time-based analysis.")
-
+        st.title("TradingView Screener Pro")
+        st.markdown("<p class='app-subtitle' data-animation='fade-in'>Advanced market screening with modern UI</p>", unsafe_allow_html=True)
     with col2:
-        st.markdown("##### 🎯 Advanced Filtering")
-        st.markdown("Use SQL-like syntax with AND/OR operators for powerful, flexible queries. Find exactly what you're looking for.")
-        
-        st.markdown("##### 🔌 Direct API Access")
-        st.markdown("Communicate with TradingView's /screener endpoint for robust, up-to-date data. Real-time market insights.")
+        st.markdown("<div style='text-align: center; padding-top: 10px;' data-animation='fade-in'><span style='font-size: 60px;'>📊</span></div>", unsafe_allow_html=True)
 
-    # Quickstart Section
-    st.header("Quickstart Example")
-    
-    code = '''
-from tradingview_screener import Query, col
+# Initialize session state with optimized defaults and animation preferences
+if 'query_results' not in st.session_state:
+    st.session_state.update({
+        'query_results': None,
+        'last_query_count': 0,
+        'playwright_installed': False,
+        'cached_market_data': None,
+        'last_market_update': 0,
+        'use_animations': True,
+        'selected_tab': "build",
+        'filter_cache': {},
+        'last_filter_update': 0,
+        'animation_loaded': False,  # Track if animations have been loaded
+        'reduced_motion': False     # Respect user preferences for reduced motion
+    })
 
-# Create a simple stock screener
-screener = (Query()
-    .select('name', 'close', 'volume', 'market_cap_basic')
-    .where(col('type') == 'stock')
-    .where(col('exchange') == 'NASDAQ')
-    .where(col('volume') > 1000000)
-    .sort('market_cap_basic', 'desc')
-    .limit(50))
+# --- Reliable tab switching using st.radio ---
+tab_options = ["📝 Build Query", "📊 Results"]
+if "selected_tab" not in st.session_state or st.session_state.selected_tab not in tab_options:
+    st.session_state.selected_tab = tab_options[0]
 
-# Get the results
-count, data = screener.get_scanner_data()
-    '''
-    
-    st.code(code, language='python')
+selected_tab = st.radio(
+    "Select Tab", tab_options,
+    index=tab_options.index(st.session_state.selected_tab),
+    horizontal=True,
+    label_visibility="collapsed"
+)
 
-    # Additional Resources
-    st.header("Additional Resources")
-    
-    resources_col1, resources_col2 = st.columns(2)
-    
-    with resources_col1:
-        st.markdown("#### 📚 Documentation")
-        st.markdown("Comprehensive guides and API reference")
-        if st.button("View Docs"):
-            st.markdown("[Documentation](https://github.com/your-repo/docs)")
-    
-    with resources_col2:
-        st.markdown("#### 💻 GitHub")
-        st.markdown("Source code and contribution guidelines")
-        if st.button("View Source"):
-            st.markdown("[GitHub Repository](https://github.com/your-repo)")
+st.session_state.selected_tab = selected_tab
 
-    # Footer
-    st.markdown("---")
-    st.markdown("Built with ❤️ using Python and Streamlit")
-
-# --- Sidebar: Help/Docs ---
-st.sidebar.markdown("""
-<div class='sidebar-header'>
-    <h1>📚 Documentation</h1>
-    <p class='sidebar-subtitle'>Explore TradingView Screener Features</p>
-</div>
-""", unsafe_allow_html=True)
-
-st.sidebar.markdown("<div class='sidebar-content'>", unsafe_allow_html=True)
-
-# Query Methods Section
-st.sidebar.markdown("""
-<div class='sidebar-section'>
-    <h3>🔍 Query Methods</h3>
-    <p class='sidebar-description'>Learn how to build powerful market queries</p>
-</div>
-""", unsafe_allow_html=True)
-
-doc_expander = st.sidebar.expander("View Query Methods", expanded=False)
-with doc_expander:
-    st.markdown(f"""
-    <div class='doc-content'>
-        <pre><code>{inspect.getdoc(Query)}</code></pre>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Column Operations Section
-st.sidebar.markdown("""
-<div class='sidebar-section'>
-    <h3>📊 Column Operations</h3>
-    <p class='sidebar-description'>Discover available data operations</p>
-</div>
-""", unsafe_allow_html=True)
-
-doc_expander2 = st.sidebar.expander("View Column Operations", expanded=False)
-with doc_expander2:
-    st.markdown(f"""
-    <div class='doc-content'>
-        <pre><code>{inspect.getdoc(col)}</code></pre>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Quick Tips Section
-st.sidebar.markdown("""
-<div class='sidebar-section'>
-    <h3>💡 Quick Tips</h3>
-    <ul class='sidebar-tips'>
-        <li>🎯 Use multiple filters for precise results</li>
-        <li>📈 Sort by any column for better analysis</li>
-        <li>💾 Export results in CSV or Excel format</li>
-        <li>🔄 Refresh regularly for latest data</li>
-    </ul>
-</div>
-""", unsafe_allow_html=True)
-
-# Support Section
-st.sidebar.markdown("""
-<div class='sidebar-section support-section'>
-    <h3>🤝 Need Help?</h3>
-    <p class='sidebar-description'>Check out our resources:</p>
-    <ul class='support-links'>
-        <li>📖 <a href="https://github.com/your-repo/docs">Documentation</a></li>
-        <li>💻 <a href="https://github.com/your-repo">GitHub Repository</a></li>
-        <li>❓ <a href="#">FAQ</a></li>
-    </ul>
-</div>
-""", unsafe_allow_html=True)
-
-st.sidebar.markdown("</div>", unsafe_allow_html=True)
-
-# --- DYNAMIC QUERY BUILDER (REDESIGNED UI) ---
-with tabs[0]:
-    st.markdown('<div class="screener-container">', unsafe_allow_html=True)
+if selected_tab == "📝 Build Query":
+    # Build Query tab content
+    st.markdown('<div class="screener-container" data-animation="fade-in">', unsafe_allow_html=True)
     
     # Create a 2-column layout for the main content
     col1, col2 = st.columns([3, 2])  # Adjusted ratio for better centered layout
 
     with col1:
-        st.markdown('<h2 class="section-header">🛠️ Query Builder</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 class="section-header" data-animation="slide-up">🛠️ Query Builder</h2>', unsafe_allow_html=True)
 
-        # 1. Market selection
-        def get_market_options():
+        # 1. Market selection with optimized animations
+        @st.cache_data(ttl=3600)  # Cache for 1 hour
+        def get_market_options() -> List[tuple]:
+            """Get and cache market options"""
             from src.tradingview_screener.markets_list import MARKETS
             return [(m[0], m[1]) for m in MARKETS]
 
@@ -257,9 +269,9 @@ with tabs[0]:
             "cfd": "CFDs"
         }
 
-        # Markets and Instruments selection
-        st.markdown('<div class="market-selector">', unsafe_allow_html=True)
-        st.markdown('<h3 class="section-header">1️⃣ Select Market & Instruments</h3>', unsafe_allow_html=True)
+        # Markets and Instruments selection with animation attributes
+        st.markdown('<div class="market-selector" data-animation="fade-in">', unsafe_allow_html=True)
+        st.markdown('<h3 class="section-header" data-animation="slide-up">1️⃣ Select Market & Instruments</h3>', unsafe_allow_html=True)
 
         # Two-column layout for market and instrument selection
         market_col, instrument_col = st.columns(2)
@@ -293,8 +305,8 @@ with tabs[0]:
 
         # 2. Fetch fields & exchanges dynamically
         @st.cache_data(show_spinner=False, ttl=60*60)
-        def fetch_fields_for_market(market_code, instrument_type='stock'):
-            """Fetch fields based on instrument type."""
+        def fetch_fields_for_market(market_code: str, instrument_type: str = 'stock') -> tuple:
+            """Fetch and cache fields for a market"""
             INSTRUMENT_FIELD_URLS = {
                 'stock': 'stocks',
                 'dr': 'stocks',
@@ -381,7 +393,18 @@ with tabs[0]:
             if USE_ANIMATIONS and LOTTIE_AVAILABLE and lottie_loading:
                 loading_placeholder = st.empty()
                 with loading_placeholder.container():
-                    st_lottie(lottie_loading, height=200, key="loading_animation")
+                    st.markdown(
+                        """
+                        <div style="height:200px; display:flex; align-items:center; justify-content:center; 
+                        background:rgba(72,149,239,0.1); border-radius:8px; margin:10px 0;">
+                            <div style="text-align:center;">
+                                <div style="font-size:24px; margin-bottom:10px;">🔄</div>
+                                <div>Loading data fields, please wait...</div>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
                     st.info("Loading data fields, please wait...")
             else:
                 loading_placeholder = st.empty()
@@ -424,8 +447,8 @@ with tabs[0]:
         }
 
         # Exchange and Column Selection
-        st.markdown('<div class="market-selector">', unsafe_allow_html=True)
-        st.markdown('<h3 class="section-header">2️⃣ Select Exchanges & Data Columns</h3>', unsafe_allow_html=True)
+        st.markdown('<div class="market-selector" data-animation="fade-in">', unsafe_allow_html=True)
+        st.markdown('<h3 class="section-header" data-animation="slide-up">2️⃣ Select Exchanges & Data Columns</h3>', unsafe_allow_html=True)
         exchange_col, column_col = st.columns(2)
 
         with exchange_col:
@@ -462,8 +485,8 @@ with tabs[0]:
         st.markdown('</div>', unsafe_allow_html=True)
 
         # 4. Filter Builder
-        st.markdown('<div class="market-selector">', unsafe_allow_html=True)
-        st.markdown('<h3 class="section-header">3️⃣ Build Your Filters</h3>', unsafe_allow_html=True)
+        st.markdown('<div class="market-selector" data-animation="fade-in">', unsafe_allow_html=True)
+        st.markdown('<h3 class="section-header" data-animation="slide-up">3️⃣ Build Your Filters</h3>', unsafe_allow_html=True)
 
         filter_ops = {
             "==": (lambda f, v: (f, "==", v), "Equal to"),
@@ -479,7 +502,7 @@ with tabs[0]:
         filters = []
         if num_filters > 0:
             for i in range(num_filters):
-                st.markdown(f'<div class="filter-card">', unsafe_allow_html=True)
+                st.markdown(f'<div class="filter-card" data-animation="fade-in">', unsafe_allow_html=True)
                 st.markdown(f"#### Filter {i+1}")
                 
                 field = st.selectbox(
@@ -502,8 +525,8 @@ with tabs[0]:
         st.markdown('</div>', unsafe_allow_html=True)
 
         # 5. Results Configuration
-        st.markdown('<div class="market-selector">', unsafe_allow_html=True)
-        st.markdown('<h3 class="section-header">4️⃣ Configure Results</h3>', unsafe_allow_html=True)
+        st.markdown('<div class="market-selector" data-animation="fade-in">', unsafe_allow_html=True)
+        st.markdown('<h3 class="section-header" data-animation="slide-up">4️⃣ Configure Results</h3>', unsafe_allow_html=True)
         sort_col, limit_col, offset_col = st.columns(3)
 
         with sort_col:
@@ -522,10 +545,10 @@ with tabs[0]:
             offset = st.number_input("Start at row", min_value=0, value=0, step=10)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Query preview in the right column
+    # Query preview in the right column with optimized animations
     with col2:
-        st.markdown('<h2 class="section-header">🔍 Query Preview</h2>', unsafe_allow_html=True)
-        st.markdown('<div class="query-preview">', unsafe_allow_html=True)
+        st.markdown('<h2 class="section-header" data-animation="slide-up">🔍 Query Preview</h2>', unsafe_allow_html=True)
+        st.markdown('<div class="query-preview" data-animation="fade-in">', unsafe_allow_html=True)
         try:
             query_code = f"Query().set_markets('{market_code}')"
 
@@ -575,9 +598,36 @@ with tabs[0]:
 
     if run_query_button:
         try:
-            with st.spinner("Executing query and fetching results..."):
+            with st.spinner(""):
+                # Show optimized loading animation
+                loading_container = st.empty()
+                loading_container.markdown("""
+                <div class="loading-animation-container" style="text-align: center; padding: 20px;">
+                    <div class="shimmer-loader" style="width: 80%; height: 30px; margin: 10px auto;"></div>
+                    <div class="shimmer-loader" style="width: 60%; height: 30px; margin: 10px auto;"></div>
+                    <div class="shimmer-loader" style="width: 70%; height: 30px; margin: 10px auto;"></div>
+                    <p style="margin-top: 15px; opacity: 0.8;">Executing query and fetching results...</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Execute query logic
                 if USE_ANIMATIONS and LOTTIE_AVAILABLE and lottie_loading:
-                    st_lottie(lottie_loading, height=200, key="query_loading")
+                    # Replace st_lottie with a placeholder
+                    st.markdown(
+                        """
+                        <div style="height:200px; display:flex; align-items:center; justify-content:center; 
+                        background:rgba(72,149,239,0.1); border-radius:8px; margin:10px 0;">
+                            <div style="text-align:center;">
+                                <div style="font-size:24px; margin-bottom:10px;">🔄</div>
+                                <div>Executing query...</div>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+                # Store market code in session state for results tab
+                st.session_state.market_code = market_code
 
                 q = Query().set_markets(market_code)
 
@@ -623,26 +673,20 @@ with tabs[0]:
 
                 st.session_state.query_results = df
                 st.session_state.last_query_count = count
-                st.session_state.selected_tab = "results"
+                st.session_state.selected_tab = "📊 Results"
                 st.success(f"✅ Query executed successfully! Found {count} matches. Showing {len(df)} rows.")
 
-                st.markdown("""
-                <script>
-                function switchToResults() {
-                    const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
-                    if (tabs.length >= 2) {
-                        tabs[1].click();
-                    }
-                }
-                window.addEventListener('load', switchToResults);
-                </script>
-                """, unsafe_allow_html=True)
+                st.session_state.selected_tab = "📊 Results"
+                st.rerun()
+
+                # Clear loading animation when complete
+                loading_container.empty()
 
         except Exception as e:
             st.error(f"❌ Error executing query: {str(e)}")
 
-# Results tab
-with tabs[1]:
+else:
+    # Results tab
     if st.session_state.query_results is not None:
         df = st.session_state.query_results
 
@@ -680,58 +724,104 @@ with tabs[1]:
                     st.info(f"Showing {len(df)} symbols from selected exchanges")
 
             # Price band filter section - only for Indian markets
-            if market_code.lower() == 'india':
+            market_code = st.session_state.get('market_code', '').lower()
+            if market_code == 'india':
                 st.subheader("🎯 Price Band Filter")
-            
-            # Fetch price bands data
-            @st.cache_data(ttl=300)
-            def fetch_price_bands():
-                try:
-                    url = "https://docs.google.com/spreadsheets/d/1xig6-dQ8PuPdeCxozcYdm15nOFUKMMZFm_p8VvRFDaE/gviz/tq?tqx=out:csv&gid=364491472"
-                    bands_df = pd.read_csv(url)
-                    bands_df = bands_df[['Symbol', 'Band']]
-                    bands_df['Symbol'] = bands_df['Symbol'].str.replace('NSE:', '', regex=False)
-                    return bands_df
-                except Exception as e:
-                    st.error(f"Error fetching price bands: {str(e)}")
-                    return pd.DataFrame(columns=['Symbol', 'Band'])
-
-            price_bands_df = fetch_price_bands()
-            
-            if not price_bands_df.empty:
-                symbol_to_band = dict(zip(price_bands_df['Symbol'], price_bands_df['Band']))
                 
-                symbol_column = None
-                for col in ['symbol', 'name', 'Stock', 'ticker']:
-                    if col in df.columns:
-                        symbol_column = col
-                        break
-                
-                if symbol_column:
-                    df['Price Band'] = df[symbol_column].str.replace('NSE:', '', regex=False).map(symbol_to_band)
-                    
-                    available_bands = sorted(price_bands_df['Band'].unique())
-                    
-                    col1, col2 = st.columns([2, 1])
-                    with col1:
-                        selected_bands = st.multiselect(
-                            "Filter by Price Band",
-                            options=available_bands,
-                            format_func=lambda x: f"Band {x} ({len(price_bands_df[price_bands_df['Band'] == x])} stocks)"
-                        )
-                    
-                    with col2:
-                        show_band_info = st.checkbox("Show Price Band Column", value=True)
-                    
-                    if selected_bands:
-                        df = df[df['Price Band'].isin(selected_bands)]
-                        st.info(f"Showing {len(df)} stocks in selected price bands")
+                # Fetch price bands data
+                @st.cache_data(ttl=300)
+                def fetch_price_bands() -> pd.DataFrame:
+                    """Fetch and cache price bands data"""
+                    try:
+                        url = "https://docs.google.com/spreadsheets/d/1xig6-dQ8PuPdeCxozcYdm15nOFUKMMZFm_p8VvRFDaE/gviz/tq?tqx=out:csv&gid=364491472"
+                        bands_df = pd.read_csv(url)
+                        bands_df = bands_df[['Symbol', 'Band']]
+                        bands_df['Symbol'] = bands_df['Symbol'].str.replace('NSE:', '', regex=False)
+                        return bands_df
+                    except Exception as e:
+                        st.error(f"Error fetching price bands: {str(e)}")
+                        return pd.DataFrame(columns=['Symbol', 'Band'])
 
-                        if not show_band_info and 'Price Band' in df.columns:
-                            df = df.drop('Price Band', axis=1)
+                price_bands_df = fetch_price_bands()
+                
+                if not price_bands_df.empty:
+                    symbol_to_band = dict(zip(price_bands_df['Symbol'], price_bands_df['Band']))
+                    
+                    symbol_column = None
+                    for col in ['symbol', 'name', 'Stock', 'ticker']:
+                        if col in df.columns:
+                            symbol_column = col
+                            break
+                    
+                    if symbol_column:
+                        df['Price Band'] = df[symbol_column].str.replace('NSE:', '', regex=False).map(symbol_to_band)
+                        
+                        available_bands = sorted(price_bands_df['Band'].unique())
+                        
+                        col1, col2 = st.columns([2, 1])
+                        with col1:
+                            selected_bands = st.multiselect(
+                                "Filter by Price Band",
+                                options=available_bands,
+                                format_func=lambda x: f"Band {x} ({len(price_bands_df[price_bands_df['Band'] == x])} stocks)"
+                            )
+                        
+                        with col2:
+                            show_band_info = st.checkbox("Show Price Band Column", value=True)
+                        
+                        if selected_bands:
+                            df = df[df['Price Band'].isin(selected_bands)]
+                            st.info(f"Showing {len(df)} stocks in selected price bands")
+
+                            if not show_band_info and 'Price Band' in df.columns:
+                                df = df.drop('Price Band', axis=1)
 
             # Main Results Display
-            st.subheader("📈 Scanner Results")
+            st.markdown("""
+                <div style='
+                    background: linear-gradient(135deg, rgba(32, 33, 35, 0.95), rgba(45, 46, 48, 0.95));
+                    padding: 1.5rem 2rem;
+                    border-radius: 12px;
+                    margin: 1rem 0;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    backdrop-filter: blur(10px);
+                '>
+                    <div style='display: flex; align-items: center; gap: 15px;'>
+                        <div style='
+                            background: linear-gradient(135deg, #3b82f6, #2563eb);
+                            width: 40px;
+                            height: 40px;
+                            border-radius: 10px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            box-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);
+                        '>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="20" x2="18" y2="10"></line>
+                                <line x1="12" y1="20" x2="12" y2="4"></line>
+                                <line x1="6" y1="20" x2="6" y2="14"></line>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 style='
+                                margin: 0;
+                                font-size: 1.5rem;
+                                font-weight: 600;
+                                color: #fff;
+                                letter-spacing: -0.025em;
+                            '>Scanner Results</h2>
+                            <p style='
+                                margin: 4px 0 0 0;
+                                font-size: 0.875rem;
+                                color: rgba(255, 255, 255, 0.7);
+                                font-weight: 400;
+                            '>Analyze your screening matches</p>
+                        </div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
             
             # Add date column configurations if they exist
             date_columns = [col for col in df.columns if any(date_term in col.lower() 
@@ -767,8 +857,6 @@ with tabs[1]:
 
             # Copy Tickers section
             st.subheader("📋 Copy Tickers")
-            ticker_col1, ticker_col2 = st.columns(2)
-            
             ticker_column = None
             for coln in ['name', 'Stock', 'ticker', 'symbol']:
                 if coln in df.columns:
@@ -777,31 +865,23 @@ with tabs[1]:
 
             if ticker_column:
                 tickers_simple = ','.join(df[ticker_column].astype(str))
-                with ticker_col1:
-                    st.text_area("Copy Tickers (comma-separated)",
-                                value=tickers_simple,
-                                height=100,
-                                help=f"Simple comma-separated tickers ({len(df)} symbols)")
-                    st.markdown(
-                        f'<button id="copy-tickers-btn" style="margin-top: 0.5em; padding: 0.5em 1em; background: #222; color: #fff; border: none; border-radius: 4px; cursor: pointer;">📋 Copy <span style=\"font-size:12px\">(to clipboard)</span></button>'
-                        '<script>'
-                        'const btn = window.parent.document.getElementById("copy-tickers-btn");'
-                        'if (btn) {'
-                        'btn.onclick = function() {'
-                        'const ta = window.parent.document.querySelector("textarea[aria-label=\'Copy Tickers (comma-separated)\']");'
-                        'if (ta) {navigator.clipboard.writeText(ta.value);}'
-                        '};'
-                        '}'
-                        '</script>',
-                        unsafe_allow_html=True
-                    )
-                with ticker_col2:
-                    tv_formatted = '\n'.join([f"{df['exchange'].iloc[i]}:{row}" if 'exchange' in df.columns else str(row)
-                                              for i, row in enumerate(df[ticker_column])])
-                    st.text_area("Copy for TradingView",
-                                value=tv_formatted,
-                                height=100,
-                                help="Format ready for TradingView watchlists")
+                st.text_area("Copy Tickers (comma-separated)",
+                            value=tickers_simple,
+                            height=100,
+                            help=f"Simple comma-separated tickers ({len(df)} symbols)")
+                st.markdown(
+                    f'<button id="copy-tickers-btn" style="margin-top: 0.5em; padding: 0.5em 1em; background: #222; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Copy</button>'
+                    '<script>'
+                    'const btn = window.parent.document.getElementById("copy-tickers-btn");'
+                    'if (btn) {'
+                    'btn.onclick = function() {'
+                    'const ta = window.parent.document.querySelector("textarea[aria-label=\'Copy Tickers (comma-separated)\']");'
+                    'if (ta) {navigator.clipboard.writeText(ta.value);}'
+                    '};'
+                    '}'
+                    '</script>',
+                    unsafe_allow_html=True
+                )
 
             # Download buttons
             dl_col1, dl_col2 = st.columns(2)
@@ -974,247 +1054,77 @@ def render_results():
             <button class='action-btn'><span class='material-icons'>refresh</span> Refresh</button>
         </div>
     </div>
-    """, unsafe_allow_html=True)
-
-# Add CSS for the new components
-st.markdown("""
-<style>
-/* Page Header */
-.page-header {
-    padding: 2rem 0;
-    margin-bottom: 2rem;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-}
-
-.page-header h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    color: #ffffff;
-}
-
-.subtitle {
-    font-size: 1.1rem;
-    color: rgba(255,255,255,0.7);
-}
-
-/* Content Cards */
-.content-card {
-    background: rgba(255,255,255,0.05);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    border: 1px solid rgba(255,255,255,0.1);
-    transition: all 0.3s ease;
-}
-
-.content-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-}
-
-.content-card h3 {
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    color: #ffffff;
-}
-
-/* Filters */
-.filter-tag {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    margin: 0.25rem;
-    border-radius: 20px;
-    background: rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.8);
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.filter-tag.active {
-    background: #2962ff;
-    color: white;
-}
-
-.filter-tag:hover {
-    background: rgba(41,98,255,0.3);
-}
-
-/* Quick Filters */
-.quick-filters {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.filter-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background: rgba(255,255,255,0.05);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.filter-item:hover {
-    background: rgba(255,255,255,0.1);
-}
-
-/* Band Stats */
-.band-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.stat-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem;
-    background: rgba(255,255,255,0.05);
-    border-radius: 8px;
-}
-
-.stat-value {
-    font-weight: 600;
-    color: #2962ff;
-}
-
-/* Modern Select */
-.modern-select {
-    width: 100%;
-    padding: 0.75rem;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: white;
-    appearance: none;
-    cursor: pointer;
-}
-
-/* Action Buttons */
-.action-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-weight: 500;
-}
-
-.action-btn.primary {
-    background: #2962ff;
-    color: white;
-}
-
-.action-btn.secondary {
-    background: rgba(255,255,255,0.1);
-    color: white;
-}
-
-.action-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-
-/* Results Toolbar */
-.results-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    background: rgba(255,255,255,0.05);
-    border-radius: 12px;
-    margin-bottom: 2rem;
-}
-
-.toolbar-section {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.toolbar-actions {
-    margin-left: auto;
-    display: flex;
-    gap: 0.5rem;
-}
-
-/* Material Icons */
-.material-icons {
-    font-size: 20px;
-    color: rgba(255,255,255,0.8);
-}
-
-/* Adjust container widths for centered layout */
-.screener-container {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.content-card {
-    max-width: 100%;
-    margin-bottom: 1rem;
-}
-
-/* Adjust column layouts */
-.stColumns {
-    gap: 1rem;
-}
-
-/* Make dataframes and charts responsive */
-.stDataFrame {
-    width: 100%;
-    max-width: 100%;
-}
-
-.element-container {
-    width: 100%;
-}
-
-/* Adjust metrics for smaller width */
-.stMetric {
-    width: 100%;
-}
-
-/* Make buttons full width on smaller screens */
-@media (max-width: 768px) {
-    .stButton > button {
-        width: 100%;
-    }
-}
-
-/* Adjust card padding for smaller screens */
-@media (max-width: 768px) {
-    .content-card {
-        padding: 1rem;
-    }
-}
-</style>
 """, unsafe_allow_html=True)
 
 # Navigation Logic
 if 'page' not in st.session_state:
     st.session_state.page = 'scanner'
 
-# Sidebar Navigation
-st.sidebar.markdown("<div class='nav-section'>", unsafe_allow_html=True)
-if st.sidebar.button("📊 Advanced Scanner", use_container_width=True):
-    st.session_state.page = 'scanner'
-if st.sidebar.button("📰 Stock News", use_container_width=True):
-    st.session_state.page = 'news'
-if st.sidebar.button("💹 Price Bands", use_container_width=True):
-    st.session_state.page = 'bands'
-if st.sidebar.button("📈 Results", use_container_width=True):
-    st.session_state.page = 'results'
-st.sidebar.markdown("</div>", unsafe_allow_html=True)
+# Custom Sidebar Navigation with Emojis and Sleek Design
+NAV_ITEMS = [
+    ("scanner", "📊", "Advanced Scanner"),
+    ("news", "📰", "Stock News"),
+    ("ema", "📊", "EMA Scanner"),
+    ("ipo", "🔔", "IPO Issues"),
+    ("volume", "📈", "Volume Gainers"),
+    ("financials", "💹", "Financials"),
+    ("bands", "📊", "Price Bands"),
+    ("results", "📋", "Results"),
+]
+
+sidebar_html = """
+<style>
+.custom-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 1.5em;
+}
+.custom-sidebar-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 1.1em;
+    padding: 0.75em 1em;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #a0aec0;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, transform 0.15s;
+    text-align: left;
+}
+.custom-sidebar-btn.active, .custom-sidebar-btn:hover {
+    background: rgba(59, 130, 246, 0.18);
+    color: #fff;
+    transform: scale(1.03);
+}
+.custom-sidebar-emoji {
+    font-size: 1.5em;
+    margin-right: 6px;
+}
+</style>
+<div class="custom-sidebar-nav">
+"""
+for key, emoji, label in NAV_ITEMS:
+    active = "active" if st.session_state.get("page", "scanner") == key else ""
+    sidebar_html += f'''
+    <form action="" method="post">
+        <button name="nav" value="{key}" class="custom-sidebar-btn {active}" type="submit">
+            <span class="custom-sidebar-emoji">{emoji}</span>{label}
+        </button>
+    </form>
+    '''
+sidebar_html += "</div>"
+st.sidebar.markdown(sidebar_html, unsafe_allow_html=True)
+
+# Handle navigation POST (works on rerun)
+if "page" not in st.session_state:
+    st.session_state.page = "scanner"
+if "nav" in st.session_state:
+    st.session_state.page = st.session_state["nav"]
 
 # Render the selected page
 if st.session_state.page == 'scanner':

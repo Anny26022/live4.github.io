@@ -3,6 +3,12 @@ import pandas as pd
 import io
 import time
 
+# Initialize session state for news data
+if 'news_df' not in st.session_state:
+    st.session_state.news_df = pd.DataFrame()
+    st.session_state.news_last_update = None
+    st.session_state.news_loading = False
+
 # Page config
 st.set_page_config(
     page_title="Stock News",
@@ -98,18 +104,15 @@ with col3:
         unsafe_allow_html=True
     )
 
-# Get the news data
-news_df, news_last_update = fetch_stock_news()
-if 'news_last_seen_update' not in st.session_state:
-    st.session_state['news_last_seen_update'] = news_last_update
-if news_last_update != st.session_state['news_last_seen_update']:
-    st.info('New stock news data is available!')
-    if st.button('Reload News Data'):
-        fetch_stock_news.clear()
-        st.session_state['news_last_seen_update'] = news_last_update
+# Fetch news in background after page loads
+if not st.session_state.news_loading and st.session_state.news_df.empty:
+    st.session_state.news_loading = True
+    with st.spinner("Loading news data..."):
+        st.session_state.news_df, st.session_state.news_last_update = fetch_stock_news()
+        st.session_state.news_loading = False
         st.rerun()
 
-if not news_df.empty:
+if not st.session_state.news_df.empty:
     # Add filters at the top with adjusted ratios
     st.subheader("🔍 Filter News")
     
@@ -117,10 +120,10 @@ if not news_df.empty:
     
     with col1:
         # Filter by date
-        if 'NEWS_DT' in news_df.columns:
-            news_df['NEWS_DT'] = pd.to_datetime(news_df['NEWS_DT'])
-            min_date = news_df['NEWS_DT'].min().date()
-            max_date = news_df['NEWS_DT'].max().date()
+        if 'NEWS_DT' in st.session_state.news_df.columns:
+            st.session_state.news_df['NEWS_DT'] = pd.to_datetime(st.session_state.news_df['NEWS_DT'])
+            min_date = st.session_state.news_df['NEWS_DT'].min().date()
+            max_date = st.session_state.news_df['NEWS_DT'].max().date()
             selected_date = st.date_input(
                 "Select Date Range",
                 value=(min_date, max_date),
@@ -129,38 +132,38 @@ if not news_df.empty:
             )
             if len(selected_date) == 2:
                 start_date, end_date = selected_date
-                news_df = news_df[
-                    (news_df['NEWS_DT'].dt.date >= start_date) &
-                    (news_df['NEWS_DT'].dt.date <= end_date)
+                st.session_state.news_df = st.session_state.news_df[
+                    (st.session_state.news_df['NEWS_DT'].dt.date >= start_date) &
+                    (st.session_state.news_df['NEWS_DT'].dt.date <= end_date)
                 ]
     
     with col2:
         # Filter by category
-        if 'CATEGORYNAME' in news_df.columns:
+        if 'CATEGORYNAME' in st.session_state.news_df.columns:
             # Remove NaN, convert to str, filter out empty/None, then sort as string
-            categories_raw = news_df['CATEGORYNAME'].dropna().astype(str).unique().tolist()
+            categories_raw = st.session_state.news_df['CATEGORYNAME'].dropna().astype(str).unique().tolist()
             categories = ['All'] + sorted([c for c in categories_raw if c.strip() != ''])
             selected_category = st.selectbox("Select Category", categories)
             if selected_category != 'All':
-                news_df = news_df[news_df['CATEGORYNAME'] == selected_category]
+                st.session_state.news_df = st.session_state.news_df[st.session_state.news_df['CATEGORYNAME'] == selected_category]
         # Filter by subcategory
-        if 'SUBCATNAME' in news_df.columns:
-            subcats_raw = news_df['SUBCATNAME'].dropna().astype(str).unique().tolist()
+        if 'SUBCATNAME' in st.session_state.news_df.columns:
+            subcats_raw = st.session_state.news_df['SUBCATNAME'].dropna().astype(str).unique().tolist()
             subcats = ['All'] + sorted([s for s in subcats_raw if s.strip() != ''])
             selected_subcat = st.selectbox("Select Subcategory", subcats)
             if selected_subcat != 'All':
-                news_df = news_df[news_df['SUBCATNAME'] == selected_subcat]
+                st.session_state.news_df = st.session_state.news_df[st.session_state.news_df['SUBCATNAME'] == selected_subcat]
 
     # Search box for company/news
     search_term = st.text_input("🔍 Search by Company Name or News Content")
     if search_term:
-        mask = news_df.apply(lambda x: x.astype(str).str.contains(search_term, case=False)).any(axis=1)
-        news_df = news_df[mask]
+        mask = st.session_state.news_df.apply(lambda x: x.astype(str).str.contains(search_term, case=False)).any(axis=1)
+        st.session_state.news_df = st.session_state.news_df[mask]
 
     # Display news count and last update time
     col1, col2 = st.columns([2, 1])
     with col1:
-        st.info(f"📚 Showing {len(news_df)} news items")
+        st.info(f"📚 Showing {len(st.session_state.news_df)} news items")
     with col2:
         last_update = time.strftime('%I:%M:%S %p', time.localtime(st.session_state.last_update_time))
         st.info(f"Last updated: {last_update}")
@@ -186,7 +189,7 @@ if not news_df.empty:
     }
 
     # Only show columns that exist in the dataframe
-    display_cols = {k: v for k, v in display_cols.items() if k in news_df.columns}
+    display_cols = {k: v for k, v in display_cols.items() if k in st.session_state.news_df.columns}
     
     # Configure column display
     column_config = {
@@ -210,7 +213,7 @@ if not news_df.empty:
 
     # Display the news dataframe
     st.dataframe(
-        news_df[display_cols.keys()],
+        st.session_state.news_df[display_cols.keys()],
         use_container_width=True,
         height=600,
         column_config=column_config,
@@ -224,7 +227,7 @@ if not news_df.empty:
     with col1:
         st.download_button(
             "Download CSV",
-            data=news_df.to_csv(index=False),
+            data=st.session_state.news_df.to_csv(index=False),
             file_name="stock_news.csv",
             mime="text/csv"
         )
@@ -232,7 +235,7 @@ if not news_df.empty:
     with col2:
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-            news_df.to_excel(writer, index=False)
+            st.session_state.news_df.to_excel(writer, index=False)
         buffer.seek(0)
         
         st.download_button(
@@ -242,7 +245,8 @@ if not news_df.empty:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 else:
-    st.warning("Unable to fetch news data. Please try again later.")
+    if not st.session_state.news_loading:
+        st.warning("Unable to fetch news data. Please try again later.")
 
 # Add auto-refresh script
 st.markdown("""

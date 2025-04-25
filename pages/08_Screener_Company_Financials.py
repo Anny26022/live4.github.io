@@ -22,9 +22,9 @@ except ImportError:
 # Page config - must be the first Streamlit command
 st.set_page_config(
     page_title="Screener Company Financials",
+    page_icon="💹",
     layout="centered",
-    initial_sidebar_state="expanded",
-    page_icon="📊"
+    initial_sidebar_state="collapsed"
 )
 
 # Update CSS to enforce centered layout and proper width

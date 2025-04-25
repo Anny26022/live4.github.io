@@ -3,6 +3,12 @@ import pandas as pd
 from datetime import datetime
 import time
 
+# Initialize session state for results data
+if 'results_df' not in st.session_state:
+    st.session_state.results_df = pd.DataFrame()
+    st.session_state.results_last_update = None
+    st.session_state.results_loading = False
+
 # Date parsing helper for export
 def parse_date(date_str):
     """Parse DD MMM format and add current year for proper sorting (used in export)."""
@@ -64,20 +70,18 @@ st.header("📊 NSE Results Calendar")
 st.caption("Track upcoming company results and board meetings")
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Main Content
-results_df, results_last_update = fetch_results()
-if 'results_last_seen_update' not in st.session_state:
-    st.session_state['results_last_seen_update'] = results_last_update
-if results_last_update != st.session_state['results_last_seen_update']:
-    st.info('New NSE results data is available!')
-    if st.button('Reload Results Data'):
-        fetch_results.clear()
-        st.session_state['results_last_seen_update'] = results_last_update
-        st.experimental_rerun()
+# Fetch results in background after page loads
+if not st.session_state.results_loading and st.session_state.results_df.empty:
+    st.session_state.results_loading = True
+    with st.spinner("Loading results data..."):
+        st.session_state.results_df, st.session_state.results_last_update = fetch_results()
+        st.session_state.results_loading = False
+        st.rerun()
 
-if not results_df.empty:
+# Main Content
+if not st.session_state.results_df.empty:
     # Show last update time
-    st.caption(f"Last Updated: {results_df['Last Updated'].iloc[0]}")
+    st.caption(f"Last Updated: {st.session_state.results_df['Last Updated'].iloc[0]}")
     
     # Create three columns for controls
     col1, col2, col3 = st.columns([2, 2, 1])
@@ -88,7 +92,7 @@ if not results_df.empty:
     
     with col2:
         # Get unique dates and sort them chronologically
-        unique_dates = list(results_df['Meeting Date'].unique())
+        unique_dates = list(st.session_state.results_df['Meeting Date'].unique())
         sorted_dates = sort_dates(unique_dates)
         selected_date = st.selectbox(
             "📅 Select Date",
@@ -99,7 +103,7 @@ if not results_df.empty:
     with col3:
         # Add export and refresh buttons at the top
         if st.button("📥 Export Results", use_container_width=True):
-            export_df = results_df.copy()
+            export_df = st.session_state.results_df.copy()
             export_df['Scrip Code'] = export_df['Scrip Code'].astype(int)
             export_df['Sort_Date'] = export_df['Meeting Date'].apply(lambda x: parse_date(x))
             export_df = export_df.sort_values(['Sort_Date', 'Short Name'])
@@ -113,10 +117,10 @@ if not results_df.empty:
             )
         if st.button("🔄 Refresh", use_container_width=True):
             st.cache_data.clear()
-            st.experimental_rerun()
+            st.rerun()
     
     # Filter results
-    filtered_df = results_df.copy()
+    filtered_df = st.session_state.results_df.copy()
     
     if search_term:
         filtered_df = filtered_df[
@@ -183,4 +187,5 @@ if not results_df.empty:
             )
     
 else:
-    st.warning("No results data available. Please try refreshing.") 
+    if not st.session_state.results_loading:
+        st.warning("No results data available. Please try refreshing.") 

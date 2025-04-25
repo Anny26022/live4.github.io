@@ -2,6 +2,39 @@ import streamlit as st
 from tradingview_screener import Query, col
 import pandas as pd
 
+st.set_page_config(
+    page_title="Advanced Scanner",
+    page_icon="🛠️",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+st.markdown("""
+<style>
+.dev-banner {
+    background: linear-gradient(90deg, #ff5858 0%, #ffc837 100%);
+    color: #222;
+    border-radius: 18px;
+    padding: 2.5rem 2rem;
+    font-size: 2.1rem;
+    font-weight: 800;
+    margin-bottom: 2.5rem;
+    box-shadow: 0 8px 32px 0 rgba(255,88,88,0.18);
+    text-align: center;
+    letter-spacing: 0.02em;
+    animation: fadeIn 1.1s;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+<div class="dev-banner">
+🚧 This page is under development.<br>We will come back soon!
+</div>
+""", unsafe_allow_html=True)
+st.stop()
+
 # Add clipboard component
 def create_copy_button(text, button_text):
     st.markdown("""
@@ -12,13 +45,6 @@ def create_copy_button(text, button_text):
         </script>
         <button onclick="copyToClipboard('{}');">{}</button>
     """.format(text, button_text), unsafe_allow_html=True)
-
-# Page config
-st.set_page_config(
-    page_title="Advanced Scanner - TradingView Screener",
-    page_icon="📊",
-    layout="centered"
-)
 
 # Load custom CSS
 try:
