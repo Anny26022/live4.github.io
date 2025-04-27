@@ -22,13 +22,59 @@ st.markdown("""
     box-shadow: 0 8px 32px 0 rgba(255,88,88,0.18);
     text-align: center;
     letter-spacing: 0.02em;
-    animation: fadeIn 1.1s;
+    animation: fadeInUp 1.1s cubic-bezier(0.4,0,0.2,1);
 }
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-24px); }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(32px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes scalePop {
+  from { transform: scale(0.95); opacity: 0.7; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.stButton > button {
+    transition: background 0.18s, color 0.18s, transform 0.18s, box-shadow 0.18s;
+    animation: scalePop 0.5s cubic-bezier(0.4,0,0.2,1);
+    position: relative;
+    overflow: hidden;
+}
+.stButton > button:hover {
+    background: linear-gradient(90deg, #ffc837 0%, #ff5858 100%);
+    color: #23272f;
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 4px 16px rgba(255,88,88,0.12);
+}
+.stButton > button:active {
+    transform: scale(0.97);
+}
+
+.stProgress > div > div {
+    background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+    animation: shimmer 2.5s linear infinite;
+    background-size: 1000px 100%;
+}
+
+.stDataFrame, .stTable {
+    animation: fadeInUp 0.7s cubic-bezier(0.4,0,0.2,1);
+}
+
+.stMetric {
+    animation: scalePop 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+
+.stSelectbox > div > div > div > input:focus {
+    box-shadow: 0 0 0 2px #3b82f6;
+    transition: box-shadow 0.2s cubic-bezier(0.4,0,0.2,1);
+}
 </style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
 <div class="dev-banner">
 🚧 This page is under development.<br>We will come back soon!
 </div>

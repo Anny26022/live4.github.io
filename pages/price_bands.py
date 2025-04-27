@@ -5,21 +5,8 @@ import plotly.graph_objects as go
 from datetime import datetime
 import time
 
-st.set_page_config(
-    page_title="Price Bands",
-    page_icon="📊",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
-
-# Initialize session state for price bands data
-if 'price_bands_df' not in st.session_state:
-    st.session_state.price_bands_df = pd.DataFrame()
-    st.session_state.bands_last_update = None
-    st.session_state.price_bands_loading = False
-
 # --- Price Bands Data Fetch with Smart Cache ---
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=21600)
 def fetch_price_bands():
     try:
         url = "https://docs.google.com/spreadsheets/d/1xig6-dQ8PuPdeCxozcYdm15nOFUKMMZFm_p8VvRFDaE/gviz/tq?tqx=out:csv&gid=364491472"
@@ -33,6 +20,11 @@ def fetch_price_bands():
     except Exception as e:
         st.error(f"Error fetching price bands: {str(e)}")
         return pd.DataFrame(columns=['Symbol', 'Series', 'Security Name', 'Band', 'Last Updated']), str(time.time())
+
+# Initialize session state for price bands data
+if 'price_bands_df' not in st.session_state:
+    # Always load from cache for instant page load
+    st.session_state.price_bands_df, st.session_state.bands_last_update = fetch_price_bands()
 
 if __name__ == "__main__":
     # Load custom CSS
@@ -86,15 +78,13 @@ if __name__ == "__main__":
     </div>
     """, unsafe_allow_html=True)
 
-    # Fetch price bands in background after page loads
-    if not st.session_state.price_bands_loading and st.session_state.price_bands_df.empty:
-        st.session_state.price_bands_loading = True
-        with st.spinner("Loading price bands data..."):
-            st.session_state.price_bands_df, st.session_state.bands_last_update = fetch_price_bands()
-            st.session_state.price_bands_loading = False
-            st.rerun()
+    # Add a refresh button to clear cache and reload
+    refresh = st.button("🔄 Refresh Price Bands", help="Clear cache and fetch fresh data")
+    if refresh:
+        st.cache_data.clear()
+        st.session_state.price_bands_df, st.session_state.bands_last_update = fetch_price_bands()
+        st.experimental_rerun()
 
-    # Rest of your existing code using st.session_state.price_bands_df instead of price_bands_df
     if not st.session_state.price_bands_df.empty:
         # Calculate band distribution
         total_stocks = len(st.session_state.price_bands_df)
@@ -291,10 +281,6 @@ if __name__ == "__main__":
                         key="download-csv",
                         help="Download the complete price bands data"
                     )
-                refresh_btn = st.button("Refresh Data", key="refresh_data_btn", use_container_width=True)
-                if refresh_btn:
-                    st.cache_data.clear()
-                    st.rerun()
                 st.markdown("---")
                 st.subheader("📊 Band Metrics")
                 if not st.session_state.price_bands_df.empty:
@@ -329,3 +315,4 @@ if __name__ == "__main__":
         # Footer
         st.markdown("---")
         st.caption(f"Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    

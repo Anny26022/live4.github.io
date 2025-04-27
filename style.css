@@ -115,6 +115,16 @@ h1 {
   animation: fadeIn 0.5s ease-out;
 }
 
+.stSelectbox>div>div>div>input {
+    background: rgba(255,255,255,0.10) !important;
+    border-radius: 6px !important;
+    color: #fff !important;
+    border: 1px solid #23293b !important;
+    font-size: 0.98rem !important;
+    padding: 0.25rem 0.7rem !important;
+    height: 2.1rem !important;
+}
+
 .stSelectbox > div, .stMultiselect > div, .stTextInput > div, .stNumberInput > div {
   border-radius: var(--border-radius);
   border: 1px solid var(--border-color);
@@ -837,4 +847,52 @@ div:has(> .stMarkdown > div > pre > code:contains("[")) {
   .main .block-container {
     padding-left: 0 !important;
   }
+}
+
+/* Custom Toggle for Industry/Sector (material, minimal, responsive) */
+.custom-toggle-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+.custom-toggle-radio {
+    display: flex;
+    gap: 1.2rem;
+    background: rgba(30,30,30,0.7);
+    border-radius: 2rem;
+    padding: 0.3rem 0.7rem;
+    box-shadow: 0 2px 8px rgba(41,98,255,0.08);
+    border: 1px solid #222;
+    font-size: 1.07rem;
+}
+.custom-toggle-radio label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+    color: #fff;
+    transition: color 0.2s;
+}
+.custom-toggle-radio input[type="radio"] {
+    appearance: none;
+    width: 1.1em;
+    height: 1.1em;
+    border-radius: 50%;
+    border: 2px solid #3949ab;
+    margin-right: 0.5em;
+    background: #23272f;
+    outline: none;
+    transition: border 0.2s, background 0.2s;
+}
+.custom-toggle-radio input[type="radio"]:checked {
+    background: #1de9b6;
+    border-color: #1de9b6;
+}
+.custom-toggle-radio input[type="radio"]:focus {
+    border-color: #2962ff;
+}
+@media (max-width: 700px) {
+    .custom-toggle-row { margin-bottom: 0.4rem; }
+    .custom-toggle-radio { font-size: 0.98rem; padding: 0.18rem 0.4rem; }
 }

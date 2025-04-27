@@ -1,37 +1,38 @@
 # NSE Multi-EMA Stock Screener & Dashboard
 
-A comprehensive, production-grade Streamlit web app for advanced stock screening, analytics, and dashboards focused on Indian and global markets (NSE/BSE and beyond). Effortlessly scan for high-momentum stocks above multiple EMAs, visualize price bands, analyze company financials, and export results—all with an intuitive, responsive UI. **Supports cross-asset, cross-exchange, cross-border, and global instrument scanning—including equities, indices, forex, crypto, and more—using TradingView's global data universe.**
+A modern, mobile-friendly Streamlit web app for advanced stock screening, analytics, and dashboards—focused on Indian and global markets (NSE/BSE and worldwide). Effortlessly scan for high-momentum stocks above multiple EMAs, visualize price bands, analyze company financials, and export results—all with an intuitive, responsive UI. **Supports cross-asset, cross-exchange, and global scanning using TradingView's data universe.**
 
 ---
 
 ## 📚 Table of Contents
 1. [Project Overview](#project-overview)
 2. [Features](#features)
-3. [Screenshots](#screenshots)
-4. [Installation & Quickstart](#installation--quickstart)
-5. [Usage Guide](#usage-guide)
-6. [Configuration & Customization](#configuration--customization)
-7. [Technical Architecture](#technical-architecture)
-8. [Developer Guide](#developer-guide)
-9. [Advanced Topics](#advanced-topics)
-10. [FAQ & Troubleshooting](#faq--troubleshooting)
-11. [Contributing](#contributing)
-12. [License](#license)
-13. [Contact](#contact)
+3. [App Pages Overview](#app-pages-overview)
+4. [Screenshots](#screenshots)
+5. [Installation & Quickstart](#installation--quickstart)
+6. [Usage Guide](#usage-guide)
+7. [Performance Optimization & Caching](#performance-optimization--caching)
+8. [Configuration & Customization](#configuration--customization)
+9. [Technical Architecture](#technical-architecture)
+10. [Developer Guide](#developer-guide)
+11. [FAQ & Troubleshooting](#faq--troubleshooting)
+12. [Contributing](#contributing)
+13. [License](#license)
+14. [Contact](#contact)
 
 ---
 
 ## 🏁 Project Overview
-NSE Multi-EMA Stock Screener & Dashboard is a robust, extensible platform for:
-- **Active traders & investors** seeking momentum stocks using advanced technical filters.
-- **Analysts** needing quick, interactive dashboards for Indian and global equities, indices, forex, crypto, and more.
-- **Developers** who want a modular, customizable stock analytics toolkit.
+A robust, extensible platform for:
+- **Active traders & investors** seeking momentum stocks using technical filters.
+- **Analysts** needing interactive dashboards for Indian and global equities, indices, forex, crypto, and more.
+- **Developers** who want a modular, customizable analytics toolkit.
 
 **Key Value Propositions:**
-- **Global Reach:** Scan all instruments—equities, indices, forex, crypto, ETFs, and more—across all major exchanges and borders using TradingView's global data. No limitations to a single country or asset class.
-- No vendor lock-in: 100% open source, no API keys required for core features.
-- Modular: Add new dashboards, screens, or data sources with minimal effort.
-- Modern UI: Mobile-first, responsive, and highly interactive.
+- **Global Reach:** Scan all instruments—equities, indices, forex, crypto, ETFs, and more—across all major exchanges and borders using TradingView's global data.
+- **No vendor lock-in:** 100% open source, no API keys required for core features.
+- **Modular:** Add new dashboards, screens, or data sources with minimal effort.
+- **Modern UI:** Mobile-first, responsive, and highly interactive.
 
 ---
 
@@ -53,15 +54,14 @@ NSE Multi-EMA Stock Screener & Dashboard is a robust, extensible platform for:
 
 ### Dashboards & Analytics
 - **Price Bands Dashboard:**
-  - Visualize stocks and instruments by price bands with interactive donut charts and metrics.
+  - Visualize stocks and instruments by price bands with interactive charts and metrics.
   - Export band data and see last update times.
 - **Company Financials:**
   - Deep-dive into financials, ratios, and performance for any listed company.
 - **Results Calendar:**
   - View, filter, and export scan results by date or criteria.
-  - Quick refresh and cache clearing.
 - **Stock News:**
-  - Fetch latest news from Google Sheets.
+  - Fetch latest news for any stock (supports global tickers).
   - Manual refresh and auto-update.
 
 ### UI/UX & Interactivity
@@ -75,9 +75,26 @@ NSE Multi-EMA Stock Screener & Dashboard is a robust, extensible platform for:
 
 ---
 
-## 📸 Screenshots
+## 🗂️ App Pages Overview
 
-> _Add screenshots or GIFs of the app here for visual reference._
+| Page | Icon | Description |
+|------|------|-------------|
+| **Advanced Scanner** | 🚦 | Powerful multi-asset scanner with advanced technical & fundamental filters for stocks, indices, forex, crypto, and more. |
+| **Stock News** | 📰 | Latest stock news dashboard. Fetches and displays headlines from external sources for market awareness. |
+| **Custom EMA Scanner** | 🧮 | Define your own EMA periods/thresholds for personalized scans on any instrument. Now also displays live news for each scanned symbol directly in the results. |
+| **NSE Past IPO Issues** | 🏦 | Analyze historical IPOs on NSE for research and trend spotting. |
+| **NSE 200EMA Uptrend** | 📈 | Scan NSE stocks above their 200-day EMA to find long-term uptrends. |
+| **NSE Volume Gainers** | 🔊 | Identify NSE stocks with significant volume spikes for potential trading setups. |
+| **Company Financials** | 💼 | Deep-dive into company financials, ratios, and key metrics for listed stocks. |
+| **Industry Visualization** | 🏭 | Visualize sector and industry data with charts to spot trends and leaders. |
+| **NSE Turnover Scanner** | 💸 | Scan NSE stocks by turnover to find liquid and active stocks. |
+| **Fundamental Strong Stocks** | 🏅 | List fundamentally strong stocks based on financial health and quality. |
+| **Index Max Return** | 🏆 | Analyze indices with the highest returns over a selected period. |
+| **Price Bands** | 🎯 | Visualize instruments by price bands for distribution and clustering analysis. |
+| **Result Timing** | ⏰ | Analyze timing of scan results for backtesting and signal tracking. |
+| **Results Calendar** | 📅 | Calendar view of scan results to track signals and events by date. |
+
+> _Each page is accessible from the Streamlit sidebar. Pages are modular—add, remove, or customize as your workflow evolves!_
 
 ---
 
@@ -134,10 +151,18 @@ NSE Multi-EMA Stock Screener & Dashboard is a robust, extensible platform for:
 
 ### 5. News & Calendar
 - Check **Stock News** for latest updates.
-- Use **Results Calendar** to review results date
+- Use **Results Calendar** to review results by date.
 
 ### 6. Mobile/Tablet Usage
 - The app is fully responsive. For best experience, use in landscape mode on mobile.
+
+---
+
+## ⚙️ Performance Optimization & Caching
+- The app uses Streamlit’s `@st.cache_data` decorator extensively to cache expensive API calls, news queries, and data processing, resulting in much faster reloads and reduced API usage.
+- News queries, full article fetches, and listing date lookups are all cached for optimal speed.
+- Efficient pandas operations and asynchronous fetching are used for high performance, even with large datasets.
+- UI and CSS are optimized for fast rendering on both desktop and mobile devices.
 
 ---
 
@@ -149,12 +174,15 @@ NSE Multi-EMA Stock Screener & Dashboard is a robust, extensible platform for:
 - Add new dashboards: Create Python scripts in `pages/`
 
 ### Styling
-- Modify `style.css` for colors, layout, and branding.
-- Example: Change `--primary-color` in `:root` for a new theme.
+- Modify CSS in each page or shared `style.css` for colors, layout, and branding.
+- Example: Change color variables for a new theme.
 
 ### Data Sources
 - **TradingView Screener:** Powers cross-asset, cross-exchange, global scanning with SQL-like queries for all instrument types.
 - **Google Sheets:** News/dashboard data fetched as CSV via pandas.
+- **GNews:** Fetches latest news for any stock (supports global tickers).
+- **VaderSentiment:** Analyzes sentiment of news headlines.
+- **Pytz:** Handles timezone conversions for accurate date/time representation.
 
 ### Caching
 - Uses Streamlit’s `@st.cache_data` for fast reloads and reduced API calls.
@@ -183,6 +211,9 @@ NSE Multi-EMA Stock Screener & Dashboard is a robust, extensible platform for:
 | - TradingView Screener (NSE,  |
 |   global, crypto, forex, etc) |
 | - Google Sheets (news, etc.)  |
+| - GNews (latest news)        |
+| - VaderSentiment (sentiment) |
+| - Pytz (timezone conversions) |
 +-------------------------------+
 ```
 
@@ -193,7 +224,7 @@ NSE Multi-EMA Stock Screener & Dashboard is a robust, extensible platform for:
   - `style.css` – Custom CSS for UI/UX.
 
 - **Main Dependencies:**
-  - `streamlit`, `tradingview-screener`, `pandas`, `numpy`, `plotly`, `openpyxl`, `beautifulsoup4`, `playwright`, `flask`, `werkzeug`, `requests`, `scikit-learn`, `tqdm`
+  - `streamlit`, `tradingview-screener`, `pandas`, `numpy`, `plotly`, `openpyxl`, `beautifulsoup4`, `playwright`, `flask`, `werkzeug`, `requests`, `scikit-learn`, `tqdm`, `gnews`, `vaderSentiment`, `pytz`
 
 - **Security:**
   - No secrets or API keys required for public data sources.
@@ -220,24 +251,6 @@ NSE Multi-EMA Stock Screener & Dashboard is a robust, extensible platform for:
 ### Branching & PRs
 - Use feature branches for new features.
 - Open PRs with clear descriptions and reference related issues.
-
----
-
-## ⚡ Advanced Topics
-
-### Performance Tuning
-- Use caching for expensive API/data calls.
-- Optimize pandas operations for large datasets.
-- Monitor Streamlit resource usage on cloud deployments.
-
-### Deployment
-- **Streamlit Cloud:** Push to GitHub and connect repo.
-- **Docker:** Use a Dockerfile for containerized deployment.
-- **Heroku/Other:** Ensure all dependencies in `requirements.txt`.
-
-### Integrating New APIs
-- Use `requests` or custom modules for new data sources.
-- Always wrap fetches in `try/except` and provide user feedback.
 
 ---
 
