@@ -7,8 +7,9 @@ from streamlit_autorefresh import st_autorefresh
 # Page config
 st.set_page_config(
     page_title="Result Timing Analysis",
-    page_icon="⏰",
-    layout="centered"
+    page_icon="",
+    layout="centered",
+    initial_sidebar_state="auto"
 )
 
 # Load custom CSS
@@ -65,12 +66,29 @@ def fetch_stock_news():
 # Auto-refresh every 5 minutes (300,000 ms)
 st_autorefresh(interval=300000, key="datarefresh5min")
 
-# Page Header
-st.title("⏰ Result Timing Analysis")
-st.caption("Analyze result announcements during and after market hours")
+# Page Header with modern SVG (Material: Schedule)
+st.markdown("""
+<div style='display:flex;align-items:center;justify-content:center;margin-bottom:0.5em;'>
+  <svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' style='margin-right:16px;'>
+    <rect width='48' height='48' rx='12' fill='url(#timing-bg)'/>
+    <g>
+      <circle cx='24' cy='24' r='12' fill='#29b6f6' fill-opacity='0.85'/>
+      <path d='M24 16v8l6 4' stroke='#fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/>
+    </g>
+    <defs>
+      <linearGradient id='timing-bg' x1='0' y1='0' x2='48' y2='48' gradientUnits='userSpaceOnUse'>
+        <stop stop-color='#23272F'/>
+        <stop offset='1' stop-color='#181A20'/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <span style='font-size:2.5rem;font-weight:700;color:#fff;'>Result Timing</span>
+</div>
+<p style='text-align:center;margin-top:-0.75em;margin-bottom:2em;color:#aaa;font-size:1.1rem;'>Check timings for upcoming results and events</p>
+""", unsafe_allow_html=True)
 
 # Refresh button
-refresh = st.button("🔄 Refresh Data", help="Fetch the latest result data from source (bypasses cache)")
+refresh = st.button("Refresh Data", help="Fetch the latest result data from source (bypasses cache)")
 if refresh:
     st.cache_data.clear()
     st.rerun()
@@ -80,7 +98,7 @@ result_df = fetch_stock_news()
 
 if not result_df.empty:
     # Date filter
-    st.subheader("📅 Select Date")
+    st.subheader("Select Date")
     min_date = result_df['NEWS_DT'].min().date()
     max_date = result_df['NEWS_DT'].max().date()
     
@@ -96,7 +114,7 @@ if not result_df.empty:
     filtered_df = result_df[result_df['NEWS_DT'].dt.date == selected_date]
     
     # Display metrics
-    st.subheader("📊 Result Announcement Statistics")
+    st.subheader("Result Announcement Statistics")
     col1, col2, col3, col4 = st.columns(4)
 
     total_results = len(filtered_df)
@@ -120,7 +138,7 @@ if not result_df.empty:
             return ','.join([f"NSE:{sym}" for sym in symbols])
         return ""
 
-    # Display results by timing
+    # Display results by timing with emojis
     st.subheader("🕒 Results During Market Hours")
     market_hours_df = filtered_df[
         (filtered_df['Announcement Time'] == "During Market Hours (9:07 AM - 3:30 PM)") &

@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import io
 import time
+import pytz
 
 # Initialize session state for news data
 if 'news_df' not in st.session_state:
@@ -12,8 +13,9 @@ if 'news_df' not in st.session_state:
 # Page config
 st.set_page_config(
     page_title="Stock News",
-    page_icon="📰",
-    layout="centered"
+    page_icon="",
+    layout="centered",
+    initial_sidebar_state="auto"
 )
 
 # Load custom CSS
@@ -23,55 +25,42 @@ try:
 except FileNotFoundError:
     st.warning("Style file not found. Page will run with default styling.")
 
-# Initialize session state for last update time
 if 'last_update_time' not in st.session_state:
     st.session_state.last_update_time = time.time()
 
-# --- ALL FUNCTION DEFINITIONS FIRST ---
 @st.cache_data(ttl=300)
 def fetch_stock_news():
     try:
-        # Main news sheet (existing)
         url = "https://docs.google.com/spreadsheets/d/1X6amEBgzjwpbaSST_19z-6zAMbnA4yYpnrYO_faoh_g/gviz/tq?tqx=out:csv&gid=1083642917"
         news_df = pd.read_csv(url)
         news_df.columns = [col.strip() for col in news_df.columns]
-        # --- NEW: Load the additional sheet for Analyst/Result News ---
         analyst_url = "https://docs.google.com/spreadsheets/d/1X6amEBgzjwpbaSST_19z-6zAMbnA4yYpnrYO_faoh_g/gviz/tq?tqx=out:csv&gid=909294572"
         analyst_df = pd.read_csv(analyst_url)
         analyst_df.columns = [col.strip() for col in analyst_df.columns]
-        # Ensure 'SUBCATNAME' column exists in both DataFrames
         if 'SUBCATNAME' not in news_df.columns:
             news_df['SUBCATNAME'] = ''
         if 'SUBCATNAME' not in analyst_df.columns:
             analyst_df['SUBCATNAME'] = ''
-        # Ensure 'PDF' column exists in both DataFrames
         if 'PDF' not in news_df.columns:
             news_df['PDF'] = ''
         if 'PDF' not in analyst_df.columns:
             analyst_df['PDF'] = ''
-        # Add a column to distinguish source/type if not present
         if 'SOURCE' not in news_df.columns:
             news_df['SOURCE'] = 'Main'
         if 'SOURCE' not in analyst_df.columns:
             analyst_df['SOURCE'] = 'Analyst/Result'
-        # Standardize columns for concatenation
         all_cols = sorted(set(news_df.columns).union(set(analyst_df.columns)))
         news_df = news_df.reindex(columns=all_cols)
         analyst_df = analyst_df.reindex(columns=all_cols)
-        
-        # --- Convert Google Drive file IDs to sharable PDF links if needed ---
         def ensure_pdf_url(val):
             val = str(val).strip()
             if val.startswith('http'):
                 return val
-            # If it's a Google Drive file ID, build the URL
             if val and len(val) >= 20 and '/' not in val and '.' not in val:
                 return f"https://drive.google.com/file/d/{val}/view"
             return '' if val in ('', 'nan', 'None') else val
         news_df['PDF'] = news_df['PDF'].apply(ensure_pdf_url)
         analyst_df['PDF'] = analyst_df['PDF'].apply(ensure_pdf_url)
-        
-        # Concatenate both
         combined_df = pd.concat([news_df, analyst_df], ignore_index=True)
         latest_update = ''
         try:
@@ -83,26 +72,145 @@ def fetch_stock_news():
         st.error(f"Error fetching news data: {str(e)}")
         return pd.DataFrame(), ''
 
-# --- UI LAYOUT BELOW ---
-# Title, Refresh Button, and Auto-refresh info in a single row
-col1, col2, col3 = st.columns([3, 1, 2])
-with col1:
-    st.title("📰 Stock News")
-with col2:
-    if st.button("🔄 Refresh Now", key="refresh_now"):
-        fetch_stock_news.clear()
-        st.rerun()
-with col3:
-    st.markdown(
-        """
-        <div style='display: flex; align-items: center; height: 100%; justify-content: flex-end;'>
-            <span style='background-color: #262730; padding: 10px 16px; border-radius: 5px; font-size: 1rem;'>
-                🔄 Auto-refreshing every 5m
-            </span>
-        </div>
-        """,
-        unsafe_allow_html=True
+# --- Redesigned UI Layout ---
+# Header Card
+st.markdown("""
+<div style='max-width:700px;margin:2rem auto 1.5rem auto;padding:2.2rem 2rem 1.3rem 2rem;background:linear-gradient(90deg,#22243A 60%,#181A20 100%);border-radius:18px;box-shadow:0 4px 32px rgba(44,62,80,0.14);text-align:center;'>
+  <div style='display:flex;align-items:center;justify-content:center;'>
+    <svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' style='margin-right:16px;'>
+      <rect width='48' height='48' rx='12' fill='url(#feed-bg)'/>
+      <g>
+        <rect x='12' y='16' width='24' height='4' rx='2' fill='#6d4cff'/>
+        <rect x='12' y='24' width='16' height='4' rx='2' fill='#43a047'/>
+        <rect x='12' y='32' width='8' height='4' rx='2' fill='#29b6f6'/>
+      </g>
+      <defs>
+        <linearGradient id='feed-bg' x1='0' y1='0' x2='48' y2='48' gradientUnits='userSpaceOnUse'>
+          <stop stop-color='#23272F'/>
+          <stop offset='1' stop-color='#181A20'/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <span style='font-size:2.5rem;font-weight:700;color:#fff;'>Stock News</span>
+  </div>
+  <p style='color:#b0b3c4;font-size:1.07rem;margin:0.1em 0 0.7em 0;'>Latest market insights and company updates</p>
+  <div style='display:flex;justify-content:center;gap:1.2rem;margin-top:1.1rem;'>
+    <form action="#" method="post" style="display:inline;margin:0;">
+      <button type="submit" style="background:#2962ff;color:#fff;padding:0.6em 1.5em;border:none;border-radius:7px;font-size:1.08rem;font-weight:500;cursor:pointer;box-shadow:0 2px 8px rgba(41,98,255,0.09);margin-right:0.7em;">🔄 Refresh Now</button>
+    </form>
+    <span style='background-color:#23243a;padding:0.6em 1.4em;border-radius:7px;font-size:1.08rem;color:#7ecbff;display:flex;align-items:center;gap:0.5em;'>
+      <span style='font-size:1.15em;'>🕒</span> Auto-refreshing every 5m
+    </span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Filter Card
+st.markdown("""
+<div style='max-width:700px;margin:0 auto 1.5rem auto;padding:1.7rem 2rem 1.3rem 2rem;background:linear-gradient(90deg,#23243A 60%,#181A20 100%);border-radius:14px;box-shadow:0 2px 16px rgba(44,62,80,0.10);'>
+  <div style='display:flex;align-items:center;gap:0.8em;margin-bottom:1.2em;'>
+    <span style='font-size:1.5rem;'>🔎</span>
+    <span style='font-size:1.35rem;font-weight:700;color:#fff;'>Filter News</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Actual filter widgets (centered)
+filter_cols = st.columns([1,1,1])
+
+# --- Dynamically populate category and subcategory from dataframe ---
+if not st.session_state.news_df.empty:
+    df = st.session_state.news_df.copy()
+    # Category options
+    if 'CATEGORYNAME' in df.columns:
+        categories_raw = df['CATEGORYNAME'].dropna().astype(str).unique().tolist()
+        categories = ['All'] + sorted([c for c in categories_raw if c.strip() != ''])
+    else:
+        categories = ['All']
+    # Subcategory options
+    if 'SUBCATNAME' in df.columns:
+        subcats_raw = df['SUBCATNAME'].dropna().astype(str).unique().tolist()
+        subcategories = ['All'] + sorted([s for s in subcats_raw if s.strip() != ''])
+    else:
+        subcategories = ['All']
+    # Date range limits from data
+    if 'NEWS_DT' in df.columns and not df.empty:
+        df['NEWS_DT'] = pd.to_datetime(df['NEWS_DT'])
+        min_db_date = df['NEWS_DT'].min().date()
+    else:
+        min_db_date = None
+else:
+    categories = ['All']
+    subcategories = ['All']
+    min_db_date = None
+
+import pytz
+from datetime import datetime
+india_tz = pytz.timezone('Asia/Kolkata')
+today_ist = datetime.now(india_tz).date()
+
+with filter_cols[0]:
+    # Default to current IST date, allow single date selection
+    date_range = st.date_input(
+        "Select Date Range",
+        today_ist,
+        min_value=min_db_date if min_db_date else None,
+        max_value=today_ist
     )
+with filter_cols[1]:
+    selected_category = st.selectbox("Select Category", categories)
+with filter_cols[2]:
+    selected_subcategory = st.selectbox("Select Subcategory", subcategories)
+
+st.markdown("""
+<style>
+.narrow-search-bar input {
+    max-width: 340px;
+    min-width: 180px;
+    height: 2.2em !important;
+    font-size: 1.01rem;
+    border-radius: 7px !important;
+    border: 1.5px solid #2d3a4a !important;
+    background: #181A20 !important;
+    color: #cbe8ff !important;
+    box-shadow: 0 1px 6px rgba(41,98,255,0.03);
+    padding: 0.25em 1em;
+}
+</style>
+""", unsafe_allow_html=True)
+search_term = st.text_input(
+    "",
+    key="news_search",
+    placeholder="Search by Company Name or News Content...",
+)
+st.markdown('<div class="narrow-search-bar"></div>', unsafe_allow_html=True)
+
+# --- REFRESH BUTTON ---
+if st.button("🔄 Refresh Now", key="refresh_now_connected"):
+    fetch_stock_news.clear()
+    st.session_state.news_df, st.session_state.news_last_update = fetch_stock_news()
+    st.rerun()
+
+# --- FILTER THE NEWS DATAFRAME BASED ON UI ---
+filtered_df = st.session_state.news_df.copy() if not st.session_state.news_df.empty else pd.DataFrame()
+
+# Filter by date range
+if not filtered_df.empty and date_range and 'NEWS_DT' in filtered_df.columns:
+    filtered_df['NEWS_DT'] = pd.to_datetime(filtered_df['NEWS_DT'])
+    filtered_df = filtered_df[filtered_df['NEWS_DT'].dt.date == date_range]
+
+# Filter by category
+if not filtered_df.empty and selected_category != 'All' and 'CATEGORYNAME' in filtered_df.columns:
+    filtered_df = filtered_df[filtered_df['CATEGORYNAME'] == selected_category]
+
+# Filter by subcategory
+if not filtered_df.empty and selected_subcategory != 'All' and 'SUBCATNAME' in filtered_df.columns:
+    filtered_df = filtered_df[filtered_df['SUBCATNAME'] == selected_subcategory]
+
+# Filter by search term
+if not filtered_df.empty and search_term:
+    mask = filtered_df.apply(lambda x: x.astype(str).str.contains(search_term, case=False), axis=1).any(axis=1)
+    filtered_df = filtered_df[mask]
 
 # Fetch news in background after page loads
 if not st.session_state.news_loading and st.session_state.news_df.empty:
@@ -112,61 +220,11 @@ if not st.session_state.news_loading and st.session_state.news_df.empty:
         st.session_state.news_loading = False
         st.rerun()
 
-if not st.session_state.news_df.empty:
-    # Add filters at the top with adjusted ratios
-    st.subheader("🔍 Filter News")
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        # Filter by date
-        if 'NEWS_DT' in st.session_state.news_df.columns:
-            st.session_state.news_df['NEWS_DT'] = pd.to_datetime(st.session_state.news_df['NEWS_DT'])
-            min_date = st.session_state.news_df['NEWS_DT'].min().date()
-            max_date = st.session_state.news_df['NEWS_DT'].max().date()
-            selected_date = st.date_input(
-                "Select Date Range",
-                value=(min_date, max_date),
-                min_value=min_date,
-                max_value=max_date
-            )
-            if len(selected_date) == 2:
-                start_date, end_date = selected_date
-                st.session_state.news_df = st.session_state.news_df[
-                    (st.session_state.news_df['NEWS_DT'].dt.date >= start_date) &
-                    (st.session_state.news_df['NEWS_DT'].dt.date <= end_date)
-                ]
-    
-    with col2:
-        # Filter by category
-        if 'CATEGORYNAME' in st.session_state.news_df.columns:
-            # Remove NaN, convert to str, filter out empty/None, then sort as string
-            categories_raw = st.session_state.news_df['CATEGORYNAME'].dropna().astype(str).unique().tolist()
-            categories = ['All'] + sorted([c for c in categories_raw if c.strip() != ''])
-            selected_category = st.selectbox("Select Category", categories)
-            if selected_category != 'All':
-                st.session_state.news_df = st.session_state.news_df[st.session_state.news_df['CATEGORYNAME'] == selected_category]
-        # Filter by subcategory
-        if 'SUBCATNAME' in st.session_state.news_df.columns:
-            subcats_raw = st.session_state.news_df['SUBCATNAME'].dropna().astype(str).unique().tolist()
-            subcats = ['All'] + sorted([s for s in subcats_raw if s.strip() != ''])
-            selected_subcat = st.selectbox("Select Subcategory", subcats)
-            if selected_subcat != 'All':
-                st.session_state.news_df = st.session_state.news_df[st.session_state.news_df['SUBCATNAME'] == selected_subcat]
-
-    # Search box for company/news
-    search_term = st.text_input("🔍 Search by Company Name or News Content")
-    if search_term:
-        mask = st.session_state.news_df.apply(lambda x: x.astype(str).str.contains(search_term, case=False)).any(axis=1)
-        st.session_state.news_df = st.session_state.news_df[mask]
-
-    # Display news count and last update time
+if not filtered_df.empty:
+    # Display news count
     col1, col2 = st.columns([2, 1])
     with col1:
-        st.info(f"📚 Showing {len(st.session_state.news_df)} news items")
-    with col2:
-        last_update = time.strftime('%I:%M:%S %p', time.localtime(st.session_state.last_update_time))
-        st.info(f"Last updated: {last_update}")
+        st.info(f"📚 Showing {len(filtered_df)} news items")
     
     # Configure the display
     display_cols = {
@@ -189,11 +247,11 @@ if not st.session_state.news_df.empty:
     }
 
     # Only show columns that exist in the dataframe
-    display_cols = {k: v for k, v in display_cols.items() if k in st.session_state.news_df.columns}
+    display_cols = {k: v for k, v in display_cols.items() if k in filtered_df.columns}
     
     # Configure column display
     column_config = {
-        'NEWS_DT': st.column_config.DatetimeColumn('Date & Time', format="DD-MM-YYYY HH:mm"),
+        'NEWS_DT': st.column_config.DatetimeColumn('Date & Time', format="DD-MM-YYYY hh:mm A"),
         'NSE_SYM': st.column_config.TextColumn('Symbol'),
         'SLONGNAME': st.column_config.TextColumn('Company'),
         'CATEGORYNAME': st.column_config.TextColumn('Category'),
@@ -213,7 +271,7 @@ if not st.session_state.news_df.empty:
 
     # Display the news dataframe
     st.dataframe(
-        st.session_state.news_df[display_cols.keys()],
+        filtered_df[display_cols.keys()],
         use_container_width=True,
         height=600,
         column_config=column_config,
@@ -227,7 +285,7 @@ if not st.session_state.news_df.empty:
     with col1:
         st.download_button(
             "Download CSV",
-            data=st.session_state.news_df.to_csv(index=False),
+            data=filtered_df.to_csv(index=False),
             file_name="stock_news.csv",
             mime="text/csv"
         )
@@ -235,7 +293,7 @@ if not st.session_state.news_df.empty:
     with col2:
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-            st.session_state.news_df.to_excel(writer, index=False)
+            filtered_df.to_excel(writer, index=False)
         buffer.seek(0)
         
         st.download_button(
@@ -261,95 +319,6 @@ st.markdown("""
 # Footer
 st.markdown("---")
 st.caption("TradingView Screener Pro • Built with Streamlit • Created with ❤️")
-
-# Page Header
-st.markdown("""
-<div class='page-header'>
-    <h1>📰 Stock News</h1>
-    <p class='subtitle'>Latest market insights and company updates</p>
-</div>
-""", unsafe_allow_html=True)
-
-# Main Content
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    # Market Overview Card
-    st.markdown("""
-    <div class='content-card'>
-        <h3>📊 Market Overview</h3>
-        <div class='news-filters'>
-            <span class='filter-tag active'>All Markets</span>
-            <span class='filter-tag'>US Stocks</span>
-            <span class='filter-tag'>Crypto</span>
-            <span class='filter-tag'>Forex</span>
-        </div>
-        <div class='news-list'>
-            <div class='news-item'>
-                <span class='news-time'>10:30 AM</span>
-                <span class='news-category'>Market Update</span>
-                <p class='news-headline'>Major indices showing strong momentum in morning trading</p>
-            </div>
-            <div class='news-item'>
-                <span class='news-time'>09:45 AM</span>
-                <span class='news-category'>Economic Data</span>
-                <p class='news-headline'>Consumer confidence index beats expectations</p>
-            </div>
-            <div class='news-item'>
-                <span class='news-time'>09:15 AM</span>
-                <span class='news-category'>Company News</span>
-                <p class='news-headline'>Tech sector leads gains with strong earnings reports</p>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col2:
-    # Quick Filters Card
-    st.markdown("""
-    <div class='content-card'>
-        <h3>🔍 Quick Filters</h3>
-        <div class='quick-filters'>
-            <div class='filter-item'>
-                <span class='material-icons'>trending_up</span>
-                Top Gainers
-            </div>
-            <div class='filter-item'>
-                <span class='material-icons'>trending_down</span>
-                Top Losers
-            </div>
-            <div class='filter-item'>
-                <span class='material-icons'>volume_up</span>
-                High Volume
-            </div>
-            <div class='filter-item'>
-                <span class='material-icons'>star</span>
-                Most Active
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Market Sentiment Card
-    st.markdown("""
-    <div class='content-card'>
-        <h3>📈 Market Sentiment</h3>
-        <div class='sentiment-indicators'>
-            <div class='sentiment-item'>
-                <span class='sentiment-label'>Fear & Greed Index</span>
-                <div class='sentiment-value positive'>65</div>
-            </div>
-            <div class='sentiment-item'>
-                <span class='sentiment-label'>Market Volatility</span>
-                <div class='sentiment-value neutral'>Medium</div>
-            </div>
-            <div class='sentiment-item'>
-                <span class='sentiment-label'>Trend Strength</span>
-                <div class='sentiment-value positive'>Strong</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
 # Additional CSS for news-specific components
 st.markdown("""

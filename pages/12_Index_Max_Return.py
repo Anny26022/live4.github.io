@@ -4,6 +4,34 @@ import yfinance as yf
 from tradingview_screener import Query
 from datetime import datetime
 
+st.set_page_config(
+    page_title="Index Max Return",
+    page_icon="",
+    layout="centered",
+    initial_sidebar_state="auto"
+)
+
+st.markdown("""
+<div style='display:flex;align-items:center;justify-content:center;margin-bottom:0.5em;'>
+  <svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' style='margin-right:16px;'>
+    <rect width='48' height='48' rx='12' fill='url(#index-bg)'/>
+    <polyline points='12,32 24,20 32,28 40,16' stroke='#43a047' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/>
+    <circle cx='12' cy='32' r='3' fill='#43a047'/>
+    <circle cx='24' cy='20' r='3' fill='#43a047'/>
+    <circle cx='32' cy='28' r='3' fill='#43a047'/>
+    <circle cx='40' cy='16' r='3' fill='#43a047'/>
+    <defs>
+      <linearGradient id='index-bg' x1='0' y1='0' x2='48' y2='48' gradientUnits='userSpaceOnUse'>
+        <stop stop-color='#23272F'/>
+        <stop offset='1' stop-color='#181A20'/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <span style='font-size:2.5rem;font-weight:700;color:#fff;'>Index Max Return</span>
+</div>
+<p style='text-align:center;margin-top:-0.75em;margin-bottom:2em;color:#aaa;font-size:1.1rem;'>Track indices with the highest returns</p>
+""", unsafe_allow_html=True)
+
 # --- UI Toggles for All Components ---
 st.sidebar.header('Dashboard Components')
 show_markets = st.sidebar.toggle('Show Global Markets Dashboard', value=False)

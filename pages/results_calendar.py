@@ -18,7 +18,8 @@ def parse_date(date_str):
 st.set_page_config(
     page_title="NSE Results Calendar",
     page_icon="📅",
-    layout="centered"
+    layout="centered",
+    initial_sidebar_state="auto"
 )
 
 # Load custom CSS
@@ -91,22 +92,28 @@ def _load_results_bg():
             st.experimental_rerun()
 threading.Thread(target=_load_results_bg).start()
 
-# Show skeleton/placeholder while loading only if no cached data
-if results_df is None or results_df.empty:
-    # Try to show last cache if available
-    cache = st.session_state.get('results_cache')
-    if cache and cache['df'] is not None and not cache['df'].empty:
-        results_df = cache['df']
-        results_last_update = cache['last_update']
-        st.warning("Showing last cached results data. Data may be outdated.")
-    else:
-        st.info("⌛ Loading results calendar...")
-
-# Page Header
-st.markdown("<div class='page-header'>", unsafe_allow_html=True)
-st.header("📊 NSE Results Calendar")
-st.caption("Track upcoming company results and board meetings")
-st.markdown("</div>", unsafe_allow_html=True)
+# Page Header with modern SVG (Material: Insert Chart Rounded)
+st.markdown("""
+<div style='display:flex;align-items:center;justify-content:center;margin-bottom:0.5em;'>
+  <svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' style='margin-right:16px;'>
+    <rect width='48' height='48' rx='12' fill='url(#calendar-bg)'/>
+    <g>
+      <rect x='12' y='16' width='4' height='16' rx='2' fill='#43a047'/>
+      <rect x='20' y='24' width='4' height='8' rx='2' fill='#29b6f6'/>
+      <rect x='28' y='20' width='4' height='12' rx='2' fill='#ab47bc'/>
+      <rect x='36' y='12' width='4' height='20' rx='2' fill='#ff7043'/>
+    </g>
+    <defs>
+      <linearGradient id='calendar-bg' x1='0' y1='0' x2='48' y2='48' gradientUnits='userSpaceOnUse'>
+        <stop stop-color='#23272F'/>
+        <stop offset='1' stop-color='#181A20'/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <span style='font-size:2.5rem;font-weight:700;color:#fff;'>NSE Results Calendar</span>
+</div>
+<p style='text-align:center;margin-top:-0.75em;margin-bottom:2em;color:#aaa;font-size:1.1rem;'>Track upcoming company results and board meetings</p>
+""", unsafe_allow_html=True)
 
 # Main Content
 if not results_df.empty:

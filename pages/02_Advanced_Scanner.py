@@ -3,11 +3,13 @@ from tradingview_screener import Query, col
 import pandas as pd
 
 st.set_page_config(
-    page_title="Advanced Scanner",
+    page_title="🛠️ Advanced Scanner",
     page_icon="🛠️",
     layout="centered",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="auto"
 )
+
+st.title("🛠️ Advanced Scanner")
 
 st.markdown("""
 <style>
@@ -278,50 +280,319 @@ if is_wide:
 else:
     st.warning("Your screen width is too narrow for optimal viewing. Please use a wider screen or desktop device for the best experience.")
 
-# Add or update CSS for padding, card separation, and responsive layout
+# Add professional CSS styling and animations
 st.markdown("""
 <style>
+/* Modern Color Variables */
+:root {
+    --primary: rgba(28, 131, 225, 1);
+    --primary-light: rgba(28, 131, 225, 0.1);
+    --primary-dark: rgba(20, 92, 158, 1);
+    --accent: rgba(255, 159, 67, 1);
+    --success: rgba(46, 213, 115, 1);
+    --error: rgba(255, 71, 87, 1);
+    --bg-dark: rgba(30, 30, 30, 0.95);
+    --bg-card: rgba(240, 242, 246, 0.05);
+    --text-primary: rgba(255, 255, 255, 0.9);
+    --text-secondary: rgba(255, 255, 255, 0.7);
+}
+
+/* Glass Morphism Effect */
+.glass-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* Enhanced Card Designs */
 .scanner-info-card {
-    background-color: rgba(28, 131, 225, 0.1);
-    border-radius: 10px;
-    padding: 20px;
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 24px;
     margin-bottom: 24px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
 }
 
-.parameter-card, .results-card {
-    background: rgba(30, 30, 30, 0.75);
-    border-radius: 10px;
-    padding: 1.5rem 1.2rem 1.2rem 1.2rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 2px 8px 0 rgba(20, 20, 20, 0.07);
+.scanner-info-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    transform: scaleX(0);
+    transition: transform 0.4s ease;
 }
 
-@media (max-width: 900px) {
-    .stColumns {
-        flex-direction: column !important;
+.scanner-info-card:hover::before {
+    transform: scaleX(1);
+}
+
+.scanner-info-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Sophisticated Button Styles */
+.stButton > button {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.stButton > button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease;
+}
+
+.stButton > button:hover::before {
+    width: 300%;
+    height: 300%;
+}
+
+/* Advanced Table Styling */
+.stDataFrame {
+    border-radius: 12px;
+    overflow: hidden;
+    animation: slideUp 0.5s ease-out;
+}
+
+.stDataFrame table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+
+.stDataFrame thead th {
+    background: var(--bg-dark);
+    padding: 12px 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--primary-light);
+}
+
+.stDataFrame tbody tr {
+    transition: all 0.3s ease;
+}
+
+.stDataFrame tbody tr:hover {
+    background: var(--primary-light);
+    transform: scale(1.01);
+}
+
+/* Animated Metrics */
+.stMetric {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.3s ease;
+}
+
+.stMetric:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading Animation */
+@keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+}
+
+.stSpinner {
+    background: linear-gradient(90deg, var(--bg-card) 0%, var(--primary-light) 50%, var(--bg-card) 100%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+}
+
+/* Progress Bars */
+.stProgress > div > div {
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    border-radius: 8px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dropdown Enhancements */
+.stSelectbox select {
+    background: var(--bg-card);
+    border: 1px solid var(--primary-light);
+    border-radius: 8px;
+    padding: 8px 16px;
+    transition: all 0.3s ease;
+}
+
+.stSelectbox select:hover {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+/* Slider Styling */
+.stSlider input {
+    accent-color: var(--primary);
+}
+
+.stSlider input::-webkit-slider-thumb {
+    box-shadow: 0 0 10px var(--primary);
+}
+
+/* Success/Error Messages */
+.stSuccess {
+    background: linear-gradient(135deg, var(--success), rgba(46, 213, 115, 0.8));
+    border-radius: 8px;
+    padding: 16px;
+    animation: slideIn 0.5s ease-out;
+}
+
+.stError {
+    background: linear-gradient(135deg, var(--error), rgba(255, 71, 87, 0.8));
+    border-radius: 8px;
+    padding: 16px;
+    animation: shake 0.5s ease-in-out;
+}
+
+/* Advanced Animations */
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-5px); }
+    40%, 80% { transform: translateX(5px); }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(28, 131, 225, 0.4); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(28, 131, 225, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(28, 131, 225, 0); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .scanner-info-card {
+        padding: 16px;
+        margin-bottom: 16px;
     }
-    .parameter-card, .results-card {
-        margin-bottom: 1.2rem;
-        width: 100% !important;
-        min-width: 0 !important;
+    
+    .stButton > button {
+        padding: 8px 16px;
     }
-    .stDataFrame {
-        min-width: 0 !important;
-        width: 100% !important;
-        overflow-x: auto !important;
-    }
-    .stDownloadButton, .stButton {
-        width: 100% !important;
-        min-width: 0 !important;
+    
+    .stDataFrame thead th {
+        padding: 8px 12px;
     }
 }
-.results-card, .parameter-card {
-    min-width: 0 !important;
-    width: 100% !important;
+
+/* Dark Mode Optimizations */
+@media (prefers-color-scheme: dark) {
+    .scanner-info-card {
+        background: var(--bg-card);
+    }
+    
+    .stDataFrame thead th {
+        background: var(--bg-dark);
+    }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-card);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
+
+/* Tooltip Animations */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) scale(0);
+    padding: 8px 12px;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    border-radius: 4px;
+    font-size: 12px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+[data-tooltip]:hover::before {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+}
+
+/* Loading Skeleton Animation */
+@keyframes skeletonLoading {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, var(--bg-card) 25%, var(--primary-light) 50%, var(--bg-card) 75%);
+    background-size: 200% 100%;
+    animation: skeletonLoading 1.5s infinite;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# CSS: Make results section and dataframe use the full width
+st.markdown("""
+<style>
+@media (min-width: 900px) {
+    .results-card, .stDataFrame {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+    }
 }
 .stDataFrame {
-    min-width: 0 !important;
-    width: 100% !important;
+    background: rgba(240, 242, 246, 0.07);
+    border-radius: 8px;
+    padding: 10px;
     overflow-x: auto !important;
 }
 </style>
@@ -354,10 +625,27 @@ st.markdown("""
 st.markdown("---")
 
 # Advanced Scanner Section
-st.markdown("<div class='page-header'>", unsafe_allow_html=True)
-st.header("📊 Advanced Technical Scanner")
-st.caption("Custom technical and fundamental screening for US and Indian markets")
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("""
+<div style='display:flex;align-items:center;justify-content:center;margin-bottom:0.5em;'>
+  <svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' style='margin-right:16px;'>
+    <rect width='48' height='48' rx='12' fill='url(#build-bg)'/>
+    <g>
+      <circle cx='24' cy='24' r='12' fill='#43a047' fill-opacity='0.85'/>
+      <path d='M28 20l-8 8' stroke='#fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/>
+      <circle cx='28' cy='20' r='2' fill='#fff'/>
+      <circle cx='20' cy='28' r='2' fill='#fff'/>
+    </g>
+    <defs>
+      <linearGradient id='build-bg' x1='0' y1='0' x2='48' y2='48' gradientUnits='userSpaceOnUse'>
+        <stop stop-color='#23272F'/>
+        <stop offset='1' stop-color='#181A20'/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <span style='font-size:2.5rem;font-weight:700;color:#fff;'>Advanced Scanner</span>
+</div>
+<p style='text-align:center;margin-top:-0.75em;margin-bottom:2em;color:#aaa;font-size:1.1rem;'>Scan for high-momentum stocks above key EMAs</p>
+""", unsafe_allow_html=True)
 
 # Create main layout for Advanced Scanner
 main_col1, main_col2 = st.columns([2.5, 1.5])

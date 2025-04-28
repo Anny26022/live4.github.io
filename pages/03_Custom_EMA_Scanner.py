@@ -1,9 +1,9 @@
 import streamlit as st
 st.set_page_config(
-    page_title="Custom EMA Scanner",
+    page_title="📈 Custom EMA Scanner",
     page_icon="📈",
     layout="centered",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="auto"
 )
 import sys
 import os
@@ -737,15 +737,26 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Remove top padding and menu (moved to CSS)
-st.markdown("")
-
-# Header Section
+# Page Header with modern SVG (Material: Show Chart)
 st.markdown("""
-<div class="header-section">
-    <h1 class="header-title">Custom EMA Stock Scanner</h1>
-    <p class="header-subtitle">Scan stocks based on moving averages and technical indicators</p>
+<div style='display:flex;align-items:center;justify-content:center;margin-bottom:0.5em;'>
+  <svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' style='margin-right:16px;'>
+    <rect width='48' height='48' rx='12' fill='url(#ema-bg)'/>
+    <polyline points='10,38 20,28 28,34 38,18' stroke='#00bcd4' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/>
+    <circle cx='10' cy='38' r='3' fill='#00bcd4'/>
+    <circle cx='20' cy='28' r='3' fill='#00bcd4'/>
+    <circle cx='28' cy='34' r='3' fill='#00bcd4'/>
+    <circle cx='38' cy='18' r='3' fill='#00bcd4'/>
+    <defs>
+      <linearGradient id='ema-bg' x1='0' y1='0' x2='48' y2='48' gradientUnits='userSpaceOnUse'>
+        <stop stop-color='#23272F'/>
+        <stop offset='1' stop-color='#181A20'/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <span style='font-size:2.5rem;font-weight:700;color:#fff;'>Custom EMA Scanner</span>
 </div>
+<p style='text-align:center;margin-top:-0.75em;margin-bottom:2em;color:#aaa;font-size:1.1rem;'>Scan stocks based on moving averages and technical indicators</p>
 """, unsafe_allow_html=True)
 
 # Main Container
@@ -923,20 +934,61 @@ with st.container():
             key="turnover_period",
             disabled=not turnover_filter_enabled or disable_all_filters
         )
-    with turnover_cols[3]:
+    # --- Tiny & Super-Compact Turnover Min/Max Inputs ---
+    st.markdown("""
+        <style>
+        .tiny-turnover-inputs {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 2px;
+            margin-bottom: 0;
+        }
+        .tiny-turnover-inputs .stNumberInput {
+            margin: 0 !important;
+            padding: 0 !important;
+            min-width: 44px !important;
+            max-width: 54px !important;
+            height: 22px !important;
+            background: #202127 !important;
+            border-radius: 6px !important;
+            border: 1px solid #33343a !important;
+            box-shadow: none !important;
+        }
+        .tiny-turnover-inputs label {
+            margin: 0 2px 0 0 !important;
+            padding: 0 !important;
+            font-size: 0.84rem !important;
+            font-weight: 500 !important;
+            color: #d3d6db !important;
+        }
+        .tiny-turnover-inputs input[type=\"number\"] {
+            font-size: 0.88rem !important;
+            padding: 0.05rem 0.25rem !important;
+            height: 18px !important;
+            background: transparent !important;
+            border: none !important;
+            color: #fff !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    with st.container():
+        st.markdown('<div class="tiny-turnover-inputs">', unsafe_allow_html=True)
         turnover_min = st.number_input(
             "Min",
             min_value=0.0, max_value=100000.0, value=0.0, step=0.1,
             key="turnover_min",
-            disabled=not turnover_filter_enabled or disable_all_filters
+            disabled=not turnover_filter_enabled or disable_all_filters,
+            label_visibility="visible"
         )
-    with turnover_cols[4]:
         turnover_max = st.number_input(
             "Max",
             min_value=0.0, max_value=100000.0, value=100000.0, step=0.1,
             key="turnover_max",
-            disabled=not turnover_filter_enabled or disable_all_filters
+            disabled=not turnover_filter_enabled or disable_all_filters,
+            label_visibility="visible"
         )
+        st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     # Exchange Selection
@@ -1151,13 +1203,16 @@ with st.container():
         st.warning("⌛ Please wait while price bands are loading...")
         st.button("🚀 Run Query", type="primary", disabled=True, help="Button is disabled while price bands are loading")
     else:
-        run_query_button = st.button(
-            "🚀 Run Query",
-            type="primary",
-            help="Execute the query and fetch results",
-            key="run_query_button",
-            disabled=disable_all_filters and not allow_exchange_select_only
-        )
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            run_query_button = st.button(
+                "🚀 Run Query",
+                type="primary",
+                help="Execute the query and fetch results",
+                key="run_query_button",
+                disabled=disable_all_filters and not allow_exchange_select_only
+            )
+        # Removed '📊 View Charts' button and logic as requested.
 
     st.markdown('</div>', unsafe_allow_html=True)
 

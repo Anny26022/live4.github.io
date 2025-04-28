@@ -6,11 +6,33 @@ from pages.price_bands import fetch_price_bands
 from scipy.stats import zscore
 
 st.set_page_config(
-    page_title="NSE Industry Visualization",
-    page_icon="🏭",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    page_title="Industry Visualization",
+    page_icon="",
+    layout="centered",
+    initial_sidebar_state="auto"
 )
+
+# Page Header with modern SVG (Material: Pie Chart)
+st.markdown("""
+<div style='display:flex;align-items:center;justify-content:center;margin-bottom:0.5em;'>
+  <svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' style='margin-right:16px;'>
+    <rect width='48' height='48' rx='12' fill='url(#pie-bg)'/>
+    <g>
+      <path d='M24 8a16 16 0 1 1-16 16h16z' fill='#ab47bc'/>
+      <path d='M24 8v16h16A16 16 0 0 0 24 8z' fill='#43a047'/>
+      <path d='M24 8v16H8A16 16 0 0 1 24 8z' fill='#29b6f6'/>
+    </g>
+    <defs>
+      <linearGradient id='pie-bg' x1='0' y1='0' x2='48' y2='48' gradientUnits='userSpaceOnUse'>
+        <stop stop-color='#23272F'/>
+        <stop offset='1' stop-color='#181A20'/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <span style='font-size:2.5rem;font-weight:700;color:#fff;'>Industry Visualization</span>
+</div>
+<p style='text-align:center;margin-top:-0.75em;margin-bottom:2em;color:#aaa;font-size:1.1rem;'>Visualize industry trends and sector performance</p>
+""", unsafe_allow_html=True)
 
 # --- Glassmorphism UI/UX Redesign (Compact Version) ---
 st.markdown("""
@@ -69,7 +91,7 @@ body, .stApp {
 }
 </style>
 <div class='glass-card'>
-    <div class='glass-title'>🏭 NSE Industry-wise Visualization</div>
+    <div class='glass-title'>NSE Industry-wise Visualization</div>
     <div class='glass-subtitle'>Explore the distribution of NSE stocks by industry using TradingView Screener API. Use the filters below to customize your view.</div>
 </div>
 """, unsafe_allow_html=True)
@@ -85,11 +107,11 @@ with st.container():
             key="returns_type"
         )
     with col2:
-        market_cap_min = st.number_input("Market Cap (Cr.) >", min_value=0, value=499, step=1, key="market_cap_min")
+        market_cap_min = st.number_input("Market Cap (Cr.) >", min_value=0, value=999, step=1, key="market_cap_min")
     with col3:
         stock_return_min = st.number_input("Stock Return(%) >", min_value=0.0, value=5.0, step=0.1, key="stock_return_min")
     with col4:
-        min_industry_count = st.number_input("No. of stock in Industry >=", min_value=1, value=3, step=1, key="min_industry_count")
+        min_industry_count = st.number_input("No. of stock in Industry >=", min_value=1, value=2, step=1, key="min_industry_count")
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- Fetch all NSE stocks via TradingView API (reference: 03_Custom_EMA_Scanner) ---
@@ -234,10 +256,10 @@ if not df.empty:
         percent_str = f"{percent:.1f}".rstrip('0').rstrip('.') if percent % 1 else str(int(percent))
         lines = [
             f"<span style='font-size:13px'><b>{row[group_label]}</b> <span style='color:#aaa'>({percent_str}%)</span></span>",
-            f"<span style='font-size:12px;color:#1de9b6'><b>Max: {row['Return']:.1f}</b></span>"
+            f"<span style='font-size:12px;color:#1de9b6'><b>Max: {row['Return']:.1f}%</b></span>"
         ]
         for _, srow in stocks.head(6).iterrows():
-            lines.append(f"<span style='color:#3949ab;font-size:12px'>{srow['Stock']}</span> <span style='font-size:12px'><b>{srow['Return']:.1f}</b></span>")
+            lines.append(f"<span style='color:#3949ab;font-size:12px'>{srow['Stock']}</span> <span style='font-size:12px'><b>{srow['Return']:.1f}%</b></span>")
         if len(stocks) > 6:
             lines.append(f"<span style='font-size:11px;color:#bbb'>+{len(stocks)-6} more...</span>")
         return '<br>'.join(lines)
@@ -255,12 +277,13 @@ if not df.empty:
         text='Stock',
         labels={f'{group_label}Label': f'% of Total Stocks in the {group_label}', 'Return': f'{returns_type} (%)'},
         color_discrete_sequence=['#1de9b6'],
-        height=500
+        height=560
     )
     fig_hist.update_traces(
+        width=0.22,
         textposition='outside',
-        marker_line_width=2,
-        marker_line_color='#3949ab',
+        marker_line_width=1.1,
+        marker_line_color='#23242a',
         hovertemplate='%{customdata[0]}'
     )
     fig_hist.update_traces(customdata=max_per_group[['hovertext']].values.tolist())
@@ -268,9 +291,19 @@ if not df.empty:
         xaxis_title=f"{group_label} (% of Total Stocks in the {group_label})",
         yaxis_title=f"Return (%)",
         showlegend=False,
-        margin=dict(t=60, b=80),
-        xaxis_tickangle=-30
+        margin=dict(t=44, b=68, l=24, r=24),
+        xaxis_tickangle=-28,
+        xaxis_tickfont=dict(size=12, family='Inter, sans-serif', color='#cbe8ff'),
+        yaxis_tickfont=dict(size=12, family='Inter, sans-serif', color='#cbe8ff'),
+        xaxis_title_font=dict(size=13, family='Inter, sans-serif', color='#fff'),
+        yaxis_title_font=dict(size=13, family='Inter, sans-serif', color='#fff'),
+        plot_bgcolor='#181A20',
+        paper_bgcolor='#181A20',
+        bargap=0.32,
+        bargroupgap=0.18,
     )
+    st.markdown('<div class="glass-card" style="padding:1.2rem 0.6rem 0.7rem 0.6rem;">', unsafe_allow_html=True)
     st.plotly_chart(fig_hist, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 else:
     st.warning("No industry data available to display.")

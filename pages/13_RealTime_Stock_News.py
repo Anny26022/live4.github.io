@@ -11,22 +11,30 @@ st.set_page_config(
     page_title="Real-Time Stock News",
     page_icon="📰",
     layout="centered",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="auto"
 )
 
-# --- Modern SVG Header (centered, visually grouped, no duplicate SVG) ---
-st.markdown('''
-<div style="display:flex;flex-direction:column;align-items:center;gap:0.5em;margin-bottom:1.5rem;">
-  <div style="display:flex;align-items:center;gap:0.7em;">
-    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="background:linear-gradient(135deg,#5fa8d3 60%,#232526 100%);border-radius:12px;box-shadow:0 2px 12px #5fa8d344;"><rect width="48" height="48" rx="12" fill="#181c24"/><g><ellipse cx="24" cy="24" rx="16" ry="16" fill="#5fa8d3" fill-opacity="0.13"/><ellipse cx="24" cy="24" rx="11" ry="11" fill="#5fa8d3" fill-opacity="0.21"/><ellipse cx="24" cy="24" rx="7" ry="7" fill="#5fa8d3" fill-opacity="0.33"/></g><g><rect x="15" y="19" width="18" height="10" rx="3" fill="#fff" fill-opacity="0.98"/><rect x="18" y="22" width="12" height="4" rx="2" fill="#5fa8d3"/></g></svg>
-    <span style="font-size:2.2rem;font-weight:800;color:#f5f6fa;letter-spacing:0.02em;line-height:1.1;">Real-Time Stock News</span>
-  </div>
-  <div style="max-width:600px;text-align:center;margin-top:0.5em;">
-    <span style="display:inline-block;font-size:1.13rem;font-weight:700;color:#5fa8d3;">Stay ahead with <span style="color:#3fc1ff;font-weight:800;">real-time news, market insights, and sentiment analytics.</span></span><br>
-    <span style="font-size:1.01rem;font-weight:500;color:#eaeaea;">Discover, filter, and analyze the latest headlines for any stock, company, or topic. Powered by <a href=\"https://github.com/ranahaani/GNews\" style=\"color:#ffd700;text-decoration:underline;font-weight:700;\" target=\"_blank\">GNews</a>.</span>
-  </div>
+# Page Header with modern SVG (Material: Feed)
+st.markdown("""
+<div style='display:flex;align-items:center;justify-content:center;margin-bottom:0.5em;'>
+  <svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' style='margin-right:16px;'>
+    <rect width='48' height='48' rx='12' fill='url(#realtime-bg)'/>
+    <g>
+      <rect x='12' y='16' width='24' height='4' rx='2' fill='#6d4cff'/>
+      <rect x='12' y='24' width='16' height='4' rx='2' fill='#43a047'/>
+      <rect x='12' y='32' width='8' height='4' rx='2' fill='#29b6f6'/>
+    </g>
+    <defs>
+      <linearGradient id='realtime-bg' x1='0' y1='0' x2='48' y2='48' gradientUnits='userSpaceOnUse'>
+        <stop stop-color='#23272F'/>
+        <stop offset='1' stop-color='#181A20'/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <span style='font-size:2.5rem;font-weight:700;color:#fff;'>RealTime Stock News</span>
 </div>
-''', unsafe_allow_html=True)
+<p style='text-align:center;margin-top:-0.75em;margin-bottom:2em;color:#aaa;font-size:1.1rem;'>Live updates on market news and events</p>
+""", unsafe_allow_html=True)
 
 from gnews import GNews
 from datetime import datetime
@@ -422,6 +430,9 @@ if search_query:
                         return False
                 news_items = [item for item in news_items if matches_site(item.get('url', ''))]
 
+            # --- Sort news_items so latest is on top ---
+            news_items = sorted(news_items, key=lambda x: pd.to_datetime(x.get('published date', '')), reverse=True)
+
             # --- Filter by date and 12-hour time range if selected (in IST) ---
             if date_filter:
                 ist = pytz.timezone('Asia/Kolkata')
@@ -501,5 +512,5 @@ else:
 
 st.markdown("""
 ---
-**Powered by [GNews](https://github.com/ranahaani/GNews)**
+**Powered by [GNews]**
 """)

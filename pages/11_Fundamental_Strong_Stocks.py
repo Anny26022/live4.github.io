@@ -4,14 +4,33 @@ from tradingview_screener import Query, Column
 import yfinance as yf
 
 st.set_page_config(
-    page_title="Fundamentally Strong Stocks",
-    page_icon="📊",
+    page_title="Fundamental Strong Stocks",
+    page_icon="",
     layout="centered",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="auto"
 )
 
-st.title("📊 Fundamentally Strong Stocks (NSE)")
-st.caption("Stocks filtered by robust fundamentals: positive growth, low debt, and strong profitability.")
+st.markdown("""
+<div style='display:flex;align-items:center;justify-content:center;margin-bottom:0.5em;'>
+  <svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' style='margin-right:16px;'>
+    <rect width='48' height='48' rx='12' fill='url(#fund-bg)'/>
+    <g>
+      <path d='M24 14v10l8 5' stroke='#43a047' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/>
+      <circle cx='24' cy='14' r='3' fill='#43a047'/>
+      <circle cx='32' cy='29' r='3' fill='#ab47bc'/>
+      <circle cx='16' cy='29' r='3' fill='#29b6f6'/>
+    </g>
+    <defs>
+      <linearGradient id='fund-bg' x1='0' y1='0' x2='48' y2='48' gradientUnits='userSpaceOnUse'>
+        <stop stop-color='#23272F'/>
+        <stop offset='1' stop-color='#181A20'/>
+      </linearGradient>
+    </defs>
+  </svg>
+  <span style='font-size:2.5rem;font-weight:700;color:#fff;'>Fundamental Strong Stocks</span>
+</div>
+<p style='text-align:center;margin-top:-0.75em;margin-bottom:2em;color:#aaa;font-size:1.1rem;'>Discover fundamentally strong stocks in the market</p>
+""", unsafe_allow_html=True)
 
 st.markdown('''
     <style>
@@ -185,6 +204,12 @@ for display, exch, market in EXCHANGES:
         selected_market = market
         break
 
+st.markdown('''
+<div style="padding: 1em; margin-bottom: 1em; border-radius: 12px; background: rgba(255, 193, 7, 0.13); border: 2px solid #ffc107; text-align: center; color: #ffc107; font-size: 1.1rem; font-weight: 600;">
+🚧 Only the first four Growth Filters are currently available. The rest are under development and will be enabled soon!
+</div>
+''', unsafe_allow_html=True)
+
 st.markdown('### Growth Filters (Optional)')
 # --- Growth Filters (QoQ/YoY, EPS/Net Profit/Sales/OPM) ---
 growth_filters = [
@@ -204,9 +229,21 @@ user_growth_filters = []
 for i, (label, col, default) in enumerate(growth_filters):
     target_col = left if i % 2 == 0 else right
     with target_col:
-        checked = st.checkbox(label + ' >', key=f'chk_{col}_{i}')
-        val = st.number_input(f"", value=None, step=0.1, key=f'inp_{col}_{i}') if checked else None
-        user_growth_filters.append((col, val) if checked and val is not None else None)
+        # Only enable first two left and first two right options (indices 0, 1, 2, 3)
+        if i in [0, 1, 2, 3]:
+            checked = st.checkbox(label + ' >', key=f'chk_{col}_{i}')
+            val = st.number_input(f"", value=None, step=0.1, key=f'inp_{col}_{i}') if checked else None
+            user_growth_filters.append((col, val) if checked and val is not None else None)
+        else:
+            st.checkbox(
+                label + ' >',
+                value=False,
+                key=f'chk_{col}_{i}',
+                disabled=True,
+                help='This filter is under development. Filters will be available soon.'
+            )
+            user_growth_filters.append(None)
+
 
 st.markdown('### Advanced Fundamental Filters (Optional)')
 # --- Advanced Fundamental Filters ---
@@ -225,26 +262,33 @@ adv_filter_states = {}
 for i, (label, col, typ, default, extra) in enumerate(adv_filters):
     target_col = left_adv if i % 2 == 0 else right_adv
     with target_col:
-        checked = st.checkbox(label, key=f'advchk_{col}')
-        if checked:
-            if typ == 'number':
-                val = st.number_input("", value=None, step=0.1, key=f'advnum_{col}')
-                if val is not None:
-                    adv_filter_states[col] = ('gt', val)
-            elif typ == 'range':
-                minv, maxv = st.columns(2)
-                with minv:
-                    minval = st.number_input("", value=None, step=0.1, key=f'advmin_{col}')
-                with maxv:
-                    maxval = st.number_input("", min_value=minval if minval is not None else None, value=None, step=0.1, key=f'advmax_{col}')
-                if minval is not None and maxval is not None:
-                    adv_filter_states[col] = ('range', (minval, maxval))
-            elif typ == 'max':
-                val = st.number_input("", value=None, step=0.01, key=f'advmax_{col}')
-                if val is not None:
-                    adv_filter_states[col] = ('lt', val)
-
-# Add ROE range filter for negative only selection
+        if label.startswith("Sales Growth 5 Years(%"):
+            st.checkbox(
+                label + '  🛠️',
+                value=False,
+                key=f'advchk_{col}',
+                disabled=True,
+                help='This filter is under development.'
+            )
+        else:
+            checked = st.checkbox(label, key=f'advchk_{col}')
+            if checked:
+                if typ == 'number':
+                    val = st.number_input("", value=None, step=0.1, key=f'advnum_{col}')
+                    if val is not None:
+                        adv_filter_states[col] = ('gt', val)
+                elif typ == 'range':
+                    minv, maxv = st.columns(2)
+                    with minv:
+                        minval = st.number_input("", value=None, step=0.1, key=f'advmin_{col}')
+                    with maxv:
+                        maxval = st.number_input("", min_value=minval if minval is not None else None, value=None, step=0.1, key=f'advmax_{col}')
+                    if minval is not None and maxval is not None:
+                        adv_filter_states[col] = ('range', (minval, maxval))
+                elif typ == 'max':
+                    val = st.number_input("", value=None, step=0.01, key=f'advmax_{col}')
+                    if val is not None:
+                        adv_filter_states[col] = ('lt', val)
 roe_range = st.checkbox("Filter ROE between two values (e.g. -5 and 0)", key="roe_range")
 roe_min, roe_max = None, None
 if roe_range:
@@ -254,47 +298,32 @@ if roe_range:
     with roe_max:
         roe_max_val = st.number_input("ROE max", value=0.0, step=0.1, key="roe_max_val")
     adv_filter_states['roe_range'] = ('range', (roe_min_val, roe_max_val))
-
 st.markdown('### Sequential & Special Filters (Optional)')
-# --- Sequential & Special Filters ---
+
+# --- Sequential & Special Filters section is under development banner ---
+st.markdown('''
+<div style="padding: 1.5em; margin: 1.5em 0; border-radius: 14px; background: rgba(255, 193, 7, 0.13); border: 2px solid #ffc107; text-align: center; color: #ffc107; font-size: 1.2rem; font-weight: 600;">
+🚧 This section is under development.<br>Filters will be available soon!
+</div>
+''', unsafe_allow_html=True)
+
+# Show all Sequential & Special Filter options as disabled checkboxes
 seq_filters = [
-    ("Net Profit Last", resolve_field('net_income'), 'last_positive', 1, "Quarters is +ve"),
-    ("Net Profit Increasing For Past (Quarters)", resolve_field('net_income'), 'increasing', 2, "Quarters"),
-    ("OPM Increasing For Past (Quarters)", resolve_field('operating_margin'), 'increasing', 2, "Quarters"),
-    ("Include only stocks with latest(Mar 2025) quarterly results", None, 'latest_quarter', None, None),
-    ("EPS Increasing For Past (Quarters)", resolve_field('earnings_per_share_diluted_ttm'), 'increasing', 2, "Quarters"),
-    ("Sales Increasing For Past (Quarters)", resolve_field('total_revenue_yoy_growth_ttm'), 'increasing', 2, "Quarters"),
-    ("Turn Around in Quarterly Net Profits (-ve to +ve)", resolve_field('net_income'), 'turnaround', None, None),
-    ("Include only stocks with positive QoQ change", resolve_field('qoq_positive'), 'qoq_positive', None, None),
-    ("Is EPS Last Year Greater Than Preceding Year", resolve_field('last_annual_eps'), 'eps_annual_gt_prev', None, None)
+    ("Net Profit Last (temporarily disabled)", None),
+    ("OPM Increasing For Past (Quarters)", None),
+    ("EPS Increasing For Past (Quarters)", None),
+    ("Turn Around in Quarterly Net Profits (-ve to +ve)", None),
+    ("Is EPS Last Year Greater Than Preceding Year", None),
+    ("Net Profit Increasing For Past (Quarters)", None),
+    ("Include only stocks with latest(Mar 2025) quarterly results", None),
+    ("Sales Increasing For Past (Quarters)", None),
+    ("Include only stocks with positive QoQ change", None),
 ]
 left_seq, right_seq = st.columns(2)
-
-# --- Net Profit Last (Quarters is +ve) Sequential Filter ---
-# (Temporarily disabled: checkbox and logic removed as per user request)
-# (To re-enable, uncomment logic below and restore checkbox in UI)
-
-seq_filter_states = {}
-for i, (label, col, typ, default, suffix) in enumerate(seq_filters):
+for i, (label, _) in enumerate(seq_filters):
     target_col = left_seq if i % 2 == 0 else right_seq
     with target_col:
-        # Disable checkbox for 'Net Profit Last' temporarily
-        if label == 'Net Profit Last':
-            st.markdown(f'<span style="color:grey">{label} (temporarily disabled)</span>', unsafe_allow_html=True)
-            continue
-        checked = st.checkbox(label, key=f'seqchk_{label}')
-        if checked:
-            val = None
-            if typ in ["last_positive", "increasing"]:
-                val = st.selectbox("", options=list(range(1, 9)), index=(default-1 if default else 0), key=f'seqnum_{label}')
-                if suffix:
-                    st.markdown(f"<span style='margin-left: 8px;'>{suffix}</span>", unsafe_allow_html=True)
-            elif typ == "qoq_positive":
-                val = st.selectbox("", options=["FII", "DII", "Promoter", "All"], index=0, key=f'seqqoq_{label}')
-            seq_filter_states[label] = (typ, col, val)
-
-# Note: Actual implementation of these filters on the DataFrame will require historical data or additional logic, which is not included here.
-# You can scaffold the logic for these filters as needed based on available data.
+        st.checkbox(label, value=False, disabled=True)
 
 # Ensure these columns are always included in the TradingView query
 REQUIRED_COLUMNS = [
@@ -342,15 +371,9 @@ if not df.empty:
             elif cond[0] == 'range' and cond[1][0] is not None and cond[1][1] is not None:
                 df = df[(df[col] > cond[1][0]) & (df[col] < cond[1][1])]
 
-    # --- Apply Sequential & Special Filters ---
-    # (Net Profit Last (Quarters is +ve) filter DISABLED as per user request)
-    # if 'Net Profit Last' in seq_filter_states:
-    #     typ, col, val = seq_filter_states['Net Profit Last']
-    #     if typ == 'last_positive' and val:
-    #         if 'net_income' not in query.query['columns']:
-    #             query.query['columns'].append('net_income')
-    #         def last_n_quarters_positive(row):
-    #             for i in range(val):
+    # --- Sequential & Special Filters logic temporarily disabled as section is under development ---
+    # (All filter logic for this section is omitted)
+
     #                 colname = f'net_income_fq_{i}'
     #                 if colname in row:
     #                     if (row.get(colname, 0) or 0) <= 0:

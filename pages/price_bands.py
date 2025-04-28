@@ -34,48 +34,26 @@ if __name__ == "__main__":
     except FileNotFoundError:
         st.warning("Style file not found. Page will run with default styling.")
 
-    # Page Header
+    # Page Header with modern SVG (Material: Signal Cell Tower)
     st.markdown("""
-    <style>
-    .page-header {
-        padding: 1rem;
-        margin-bottom: 2rem;
-        background: linear-gradient(135deg, rgba(0,255,149,0.1), rgba(0,255,149,0.05));
-        border-radius: 0.5rem;
-    }
-    .header-content {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-    .header-icon {
-        width: 32px;
-        height: 32px;
-        flex-shrink: 0;
-    }
-    .header-text {
-        flex-grow: 1;
-    }
-    .header-text h1 {
-        margin: 0;
-        font-size: 1.8rem;
-        font-weight: 600;
-    }
-    .subtitle {
-        margin: 0.25rem 0 0 0;
-        font-size: 1rem;
-        opacity: 0.8;
-    }
-    </style>
-    <div class='page-header'>
-        <div class='header-content'>
-            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzAwZmY5NSI+PHBhdGggZD0iTTMgM3YxOGgxOFYzSDN6bTYgMTRINXYtMmg0djJ6bTQtNEg1di0yaDh2MnptNi00SDV2LTJoMTR2MnoiLz48L3N2Zz4=" class="header-icon" />
-            <div class='header-text'>
-                <h1>Price Bands</h1>
-                <p class='subtitle'>Track and analyze price movements across bands</p>
-            </div>
-        </div>
+    <div style='display:flex;align-items:center;justify-content:center;margin-bottom:0.5em;'>
+      <svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' style='margin-right:16px;'>
+        <rect width='48' height='48' rx='12' fill='url(#bands-bg)'/>
+        <g>
+          <rect x='16' y='28' width='4' height='8' rx='2' fill='#43a047'/>
+          <rect x='24' y='20' width='4' height='16' rx='2' fill='#29b6f6'/>
+          <rect x='32' y='12' width='4' height='24' rx='2' fill='#ab47bc'/>
+        </g>
+        <defs>
+          <linearGradient id='bands-bg' x1='0' y1='0' x2='48' y2='48' gradientUnits='userSpaceOnUse'>
+            <stop stop-color='#23272F'/>
+            <stop offset='1' stop-color='#181A20'/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <span style='font-size:2.5rem;font-weight:700;color:#fff;'>Price Bands</span>
     </div>
+    <p style='text-align:center;margin-top:-0.75em;margin-bottom:2em;color:#aaa;font-size:1.1rem;'>Monitor stocks with price band movements</p>
     """, unsafe_allow_html=True)
 
     # Add a refresh button to clear cache and reload
@@ -83,7 +61,7 @@ if __name__ == "__main__":
     if refresh:
         st.cache_data.clear()
         st.session_state.price_bands_df, st.session_state.bands_last_update = fetch_price_bands()
-        st.experimental_rerun()
+        st.rerun()
 
     if not st.session_state.price_bands_df.empty:
         # Calculate band distribution

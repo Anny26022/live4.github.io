@@ -118,20 +118,29 @@ navigation_html = """
 # Display the navigation bar only once
 st.markdown(navigation_html, unsafe_allow_html=True)
 
-# Remove any duplicate navigation HTML and keep only the styling
+# --- Hide default Streamlit multipage navigation sidebar ---
 st.markdown("""
 <style>
-    /* Hide Streamlit Sidebar */
-    [data-testid="stSidebar"] {
-        display: none !important;
-    }
-    
-    /* Hide Streamlit Sidebar Toggle Button */
-    button[kind="header"] {
-        display: none !important;
-    }
+section[data-testid='stSidebarNav'] {display: none !important;}
+[data-testid='stSidebar'] {min-width: 240px !important; max-width: 320px !important;}
 </style>
 """, unsafe_allow_html=True)
+
+# Remove any duplicate navigation HTML and keep only the styling
+# --- FIX: Do NOT hide sidebar or toggle button so users can expand sidebar ---
+# (Remove or comment out any CSS that hides [data-testid="stSidebar"] or button[kind="header"])
+# st.markdown("""
+# <style>
+#     /* Hide Streamlit Sidebar */
+#     [data-testid="stSidebar"] {
+#         display: none !important;
+#     }
+#     /* Hide Streamlit Sidebar Toggle Button */
+#     button[kind="header"] {
+#         display: none !important;
+#     }
+# </style>
+# """, unsafe_allow_html=True)
 
 # Apply staggered animations
 apply_staggered_animations()
@@ -1061,64 +1070,58 @@ if 'page' not in st.session_state:
     st.session_state.page = 'scanner'
 
 # Custom Sidebar Navigation with Emojis and Sleek Design
-NAV_ITEMS = [
-    ("scanner", "📊", "Advanced Scanner"),
-    ("news", "📰", "Stock News"),
-    ("ema", "📊", "EMA Scanner"),
-    ("ipo", "🔔", "IPO Issues"),
-    ("volume", "📈", "Volume Gainers"),
-    ("financials", "💹", "Financials"),
-    ("bands", "📊", "Price Bands"),
-    ("results", "📋", "Results"),
+PAGES = [
+    ("streamlit_app", "🏠 Home"),
+    ("02_Advanced_Scanner", "🛠️ Advanced Scanner"),
+    ("02_📰_Stock_News", "📰 Stock News"),
+    ("03_Custom_EMA_Scanner", "📈 Custom EMA Scanner"),
+    ("06_NSE_Past_IPO_Issues", "🆕 NSE Past IPO Issues"),
+    ("07_NSE_200EMA_Uptrend", "📊 NSE 200EMA Uptrend"),
+    ("07_NSE_Volume_Gainers", "🚀 NSE Volume Gainers"),
+    ("08_Screener_Company_Financials", "💹 Screener Company Financials"),
+    ("09_Industry_Visualization", "🏭 Industry Visualization"),
+    ("10_NSE_Turnover_Scanner", "💸 NSE Turnover Scanner"),
+    ("11_Fundamental_Strong_Stocks", "🔎 Fundamental Strong Stocks"),
+    ("12_Index_Max_Return", "📈 Index Max Return"),
+    ("13_RealTime_Stock_News", "📰 RealTime Stock News"),
+    ("price_bands", "📊 Price Bands"),
+    ("result_timing", "⏰ Result Timing"),
+    ("results_calendar", "📅 Results Calendar")
 ]
 
-sidebar_html = """
-<style>
-.custom-sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 1.5em;
-}
-.custom-sidebar-btn {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    font-size: 1.1em;
-    padding: 0.75em 1em;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: #a0aec0;
-    font-family: 'Inter', sans-serif;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, transform 0.15s;
-    text-align: left;
-}
-.custom-sidebar-btn.active, .custom-sidebar-btn:hover {
-    background: rgba(59, 130, 246, 0.18);
-    color: #fff;
-    transform: scale(1.03);
-}
-.custom-sidebar-emoji {
-    font-size: 1.5em;
-    margin-right: 6px;
-}
-</style>
-<div class="custom-sidebar-nav">
-"""
-for key, emoji, label in NAV_ITEMS:
-    active = "active" if st.session_state.get("page", "scanner") == key else ""
-    sidebar_html += f'''
-    <form action="" method="post">
-        <button name="nav" value="{key}" class="custom-sidebar-btn {active}" type="submit">
-            <span class="custom-sidebar-emoji">{emoji}</span>{label}
-        </button>
-    </form>
-    '''
-sidebar_html += "</div>"
-st.sidebar.markdown(sidebar_html, unsafe_allow_html=True)
+with st.sidebar:
+    st.markdown("""
+    <style>
+    .sidebar-nav-link {
+        display: flex;
+        align-items: center;
+        padding: 0.55em 0.8em;
+        border-radius: 7px;
+        font-size: 1.08em;
+        font-weight: 500;
+        gap: 0.65em;
+        color: #eaeaea;
+        margin-bottom: 2px;
+        transition: background 0.17s, color 0.17s;
+        text-decoration: none;
+    }
+    .sidebar-nav-link.active {
+        background: #23293b;
+        color: #fff;
+    }
+    .sidebar-nav-link:hover {
+        background: #3949ab22;
+        color: #fff;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    st.markdown("<div style='font-size:1.32em;font-weight:700;margin-bottom:0.6em;'>📚 Navigation</div>", unsafe_allow_html=True)
+    for page_file, label in PAGES:
+        page_name = page_file.replace('.py', '')
+        st.markdown(
+            f'<a href="/{page_name}" target="_self" style="display:flex;align-items:center;padding:0.55em 0.8em;border-radius:7px;font-size:1.08em;font-weight:500;gap:0.65em;color:#eaeaea;margin-bottom:2px;text-decoration:none;">{label}</a>',
+            unsafe_allow_html=True
+        )
 
 # Handle navigation POST (works on rerun)
 if "page" not in st.session_state:
