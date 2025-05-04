@@ -148,7 +148,8 @@ if not result_df.empty:
         # Add copy button for market hours symbols
         market_symbols = format_symbols_for_copy(market_hours_df)
         if market_symbols:
-            st.text_area("Copy Market Hours Symbols", market_symbols, height=100)
+            st.markdown("<b>Select and copy the symbols below. Editing is disabled.</b>", unsafe_allow_html=True)
+            st.code(market_symbols, language=None)
         
         st.dataframe(
             market_hours_df[[
@@ -181,7 +182,8 @@ if not result_df.empty:
         # Add copy button for after hours symbols
         after_hours_symbols = format_symbols_for_copy(after_hours_df)
         if after_hours_symbols:
-            st.text_area("Copy After Hours Symbols", after_hours_symbols, height=100)
+            st.markdown("<b>Select and copy the symbols below. Editing is disabled.</b>", unsafe_allow_html=True)
+            st.code(after_hours_symbols, language=None)
         
         st.dataframe(
             after_hours_df[[
@@ -212,7 +214,8 @@ if not result_df.empty:
         if not weekend_df.empty:
             weekend_symbols = format_symbols_for_copy(weekend_df)
             if weekend_symbols:
-                st.text_area("Copy Weekend Symbols", weekend_symbols, height=100)
+                st.markdown("<b>Select and copy the symbols below. Editing is disabled.</b>", unsafe_allow_html=True)
+                st.code(weekend_symbols, language=None)
             st.dataframe(
                 weekend_df[[
                     'NEWS_DT', 'NSE_SYM', 'SLONGNAME', 'HEADLINE',

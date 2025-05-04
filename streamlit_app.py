@@ -12,6 +12,7 @@ import time
 from typing import Dict, List, Any, Optional
 from src.animation_utils import apply_staggered_animations, staggered_animation
 import os
+import datetime
 
 # --- PAGE CONFIG MUST BE FIRST ---
 st.set_page_config(
@@ -39,6 +40,7 @@ navigation_html = """
             <li><a href="." class="nav-link"><i class="material-icons">home</i> Home</a></li>
             <li><a href="Custom_EMA_Scanner" class="nav-link"><i class="material-icons">show_chart</i> EMA Scanner</a></li>
             <li><a href="Stock_News" class="nav-link"><i class="material-icons">article</i> Stock News</a></li>
+            <li><a href="BSE_Announcements" class="nav-link"><i class="material-icons">announcement</i> BSE Announcements</a></li>
             <li><a href="NSE_Past_IPO_Issues" class="nav-link"><i class="material-icons">new_releases</i> IPO Issues</a></li>
             <li><a href="NSE_Volume_Gainers" class="nav-link"><i class="material-icons">trending_up</i> Volume Gainers</a></li>
             <li><a href="Screener_Company_Financials" class="nav-link"><i class="material-icons">assessment</i> Financials</a></li>
@@ -1065,6 +1067,55 @@ def render_results():
     </div>
 """, unsafe_allow_html=True)
 
+# BSE Announcements Page
+def render_bse_announcements():
+    """Render the BSE Announcements page"""
+    st.title("📢 BSE Corporate Announcements")
+    
+    # Import the BSEAnnouncements class
+    from utils.bse_announcements_utils import BSEAnnouncements
+    
+    # Initialize the BSEAnnouncements class
+    bse = BSEAnnouncements()
+    
+    # Create filters
+    col1, col2 = st.columns(2)
+    with col1:
+        from_date = st.date_input("From Date", value=datetime.datetime.now() - datetime.timedelta(days=7))
+        category = st.selectbox("Category", options=['', 'Board Meeting', 'Result', 'Company Update', 'Corp. Action'])
+    with col2:
+        to_date = st.date_input("To Date", value=datetime.datetime.now())
+        security_name = st.text_input("Company Name/Security Code")
+    
+    # Convert dates to required format
+    from_date_str = from_date.strftime("%d/%m/%Y")
+    to_date_str = to_date.strftime("%d/%m/%Y")
+    
+    # Fetch announcements
+    if st.button("Fetch Announcements"):
+        with st.spinner("Fetching announcements..."):
+            df = bse.fetch_announcements(
+                from_date=from_date_str,
+                to_date=to_date_str,
+                category=category,
+                security_name=security_name
+            )
+            
+            if not df.empty:
+                st.dataframe(
+                    df,
+                    use_container_width=True,
+                    column_config={
+                        "Date": st.column_config.DateColumn("Date"),
+                        "Company": st.column_config.TextColumn("Company"),
+                        "Category": st.column_config.TextColumn("Category"),
+                        "Subject": st.column_config.TextColumn("Subject"),
+                        "Link": st.column_config.LinkColumn("Link")
+                    }
+                )
+            else:
+                st.warning("No announcements found for the selected criteria.")
+
 # Navigation Logic
 if 'page' not in st.session_state:
     st.session_state.page = 'scanner'
@@ -1086,7 +1137,8 @@ PAGES = [
     ("13_RealTime_Stock_News", "📰 RealTime Stock News"),
     ("price_bands", "📊 Price Bands"),
     ("result_timing", "⏰ Result Timing"),
-    ("results_calendar", "📅 Results Calendar")
+    ("results_calendar", "📅 Results Calendar"),
+    ("BSE_Announcements", "📢 BSE Announcements")
 ]
 
 with st.sidebar:
@@ -1139,3 +1191,5 @@ elif st.session_state.page == 'bands':
     render_price_bands()
 elif st.session_state.page == 'results':
     render_results()
+elif st.session_state.page == 'BSE_Announcements':
+    render_bse_announcements()

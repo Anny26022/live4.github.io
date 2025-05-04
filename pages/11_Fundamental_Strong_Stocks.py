@@ -35,17 +35,17 @@ st.markdown("""
 st.markdown('''
     <style>
     body, .main, .block-container {
-        background: #181c22 !important;
-        color: #fff !important;
+        background: #fff !important;
+        color: #222 !important;
     }
     /* Glassmorphism panel */
     .glass-panel {
-        background: rgba(24,28,34,0.7);
+        background: rgba(240, 244, 248, 0.85);
         border-radius: 18px;
-        box-shadow: 0 8px 32px 0 rgba(31,38,135,0.37);
+        box-shadow: 0 8px 32px 0 rgba(31,38,135,0.10);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-        border: 1.5px solid rgba(255,255,255,0.18);
+        border: 1.5px solid #e0e7ef;
         padding: 2.5rem 2rem 1.5rem 2rem;
         margin-bottom: 2.5rem;
         animation: glassFadeIn 1.2s cubic-bezier(.42,0,.58,1);
@@ -59,7 +59,7 @@ st.markdown('''
         min-height: 38px !important;
         font-size: 1rem !important;
         border-radius: 12px !important;
-        background: rgba(40,44,52,0.85) !important;
+        background: #fff !important;
         border: 2px solid #00e5ff !important;
         box-shadow: 0 2px 12px 0 rgba(0,229,255,0.09);
         transition: border 0.3s, box-shadow 0.3s;
@@ -92,7 +92,7 @@ st.markdown('''
     }
     /* Option hover */
     div[data-baseweb="option"]:hover {
-        background: #21242b !important;
+        background: #f0f4f8 !important;
         color: #00e5ff !important;
         font-weight: bold;
     }

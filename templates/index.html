@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Search</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-bold text-center mb-8 text-blue-600">Flight Search</h1>
+        
+        <!-- Search Form -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <form id="searchForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Trip Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Trip Type</label>
+                        <select name="trip_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="one-way">One Way</option>
+                            <option value="round-trip">Round Trip</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Seat Class -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Seat Class</label>
+                        <select name="seat_class" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="economy">Economy</option>
+                            <option value="premium-economy">Premium Economy</option>
+                            <option value="business">Business</option>
+                            <option value="first">First</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- From Airport -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">From</label>
+                        <input list="airports" id="from_airport" name="from_airport" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Type or select airport">
+                    </div>
+                    
+                    <!-- To Airport -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">To</label>
+                        <input list="airports" id="to_airport" name="to_airport" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Type or select airport">
+                    </div>
+                </div>
+                <datalist id="airports"></datalist>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Departure Date -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Departure Date</label>
+                        <input type="date" name="departure_date" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    
+                    <!-- Return Date -->
+                    <div id="returnDateContainer">
+                        <label class="block text-sm font-medium text-gray-700">Return Date</label>
+                        <input type="date" name="return_date" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- Passengers -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Adults</label>
+                        <input type="number" name="adults" min="1" max="9" value="1" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Children</label>
+                        <input type="number" name="children" min="0" max="9" value="0" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Infants (Seat)</label>
+                        <input type="number" name="infants_in_seat" min="0" max="9" value="0" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Infants (Lap)</label>
+                        <input type="number" name="infants_on_lap" min="0" max="9" value="0" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="flex justify-center">
+                    <button type="submit" 
+                            class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        Search Flights
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="space-y-4"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            const form = document.getElementById('searchForm');
+            const resultsDiv = document.getElementById('results');
+            const returnDateContainer = document.getElementById('returnDateContainer');
+            const tripTypeSelect = form.querySelector('[name="trip_type"]');
+
+            // List of Indian airport IATA codes
+            const indianAirports = [
+                "DEL", "BOM", "BLR", "MAA", "HYD", "CCU", "COK", "AMD", "GOI", "PNQ", "JAI", "LKO", "TRV", "IXC", "VGA", "IXB", "PAT", "SXR", "IXM", "IXE", "NAG", "RPR", "VTZ", "IXR", "BHO", "IMF", "GAU", "DIB", "IXA", "IXJ", "UDR", "JLR", "JDH", "GWL", "STV", "RAJ", "IXU", "TIR", "IXZ", "IXB", "IXG", "IXI", "IXL", "IXM", "IXR", "IXS", "IXU", "JAI", "JDH", "JGA", "JLR", "JRH", "KNU", "LKO", "LUH", "MAA", "NAG", "PAT", "PNQ", "RPR", "SXR", "TRV", "VGA", "VNS", "VTZ"
+            ];
+            function isIndianAirport(code) {
+                return indianAirports.includes(code.toUpperCase());
+            }
+
+            // Populate airport datalist from airports.json
+            async function populateAirportsDatalist() {
+                const datalist = document.getElementById('airports');
+                const response = await fetch('/static/airports.json');
+                const airports = await response.json();
+                airports.forEach(airport => {
+                    const option = document.createElement('option');
+                    option.value = airport.code;
+                    option.label = `${airport.city} (${airport.code}) - ${airport.name}, ${airport.country}`;
+                    datalist.appendChild(option);
+                });
+            }
+            await populateAirportsDatalist();
+
+            // Simple search filter for dropdowns
+            function addSearchableDropdown(selectId) {
+                const select = document.getElementById(selectId);
+                select.addEventListener('change', function() {
+                    // No-op for now, but can be extended for custom logic
+                });
+            }
+            addSearchableDropdown('from_airport');
+            addSearchableDropdown('to_airport');
+
+            // Show/hide return date based on trip type
+            tripTypeSelect.addEventListener('change', function() {
+                returnDateContainer.style.display = this.value === 'round-trip' ? 'block' : 'none';
+            });
+
+            // Set minimum dates
+            const today = new Date().toISOString().split('T')[0];
+            form.querySelector('[name="departure_date"]').min = today;
+            form.querySelector('[name="return_date"]').min = today;
+
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                // Manual validation for required fields
+                const fromAirport = form.querySelector('[name="from_airport"]').value.trim();
+                const toAirport = form.querySelector('[name="to_airport"]').value.trim();
+                if (!fromAirport || !toAirport) {
+                    resultsDiv.innerHTML = '<div class="text-red-600 text-center">Both origin and destination are required.</div>';
+                    return;
+                }
+                
+                // Show loading state
+                resultsDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin text-4xl text-blue-600"></i><div id="progress-msg" class="mt-2 text-blue-600">Searching for the lowest price over the next year. This may take a while...</div></div>';
+                
+                try {
+                    const formData = new FormData(form);
+                    const data = Object.fromEntries(formData.entries());
+
+                    const fromAirport = form.querySelector('[name="from_airport"]').value;
+                    const toAirport = form.querySelector('[name="to_airport"]').value;
+                    const useRupee = isIndianAirport(fromAirport) || isIndianAirport(toAirport);
+                    
+                    const response = await fetch('/search', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        if (result.long_search) {
+                            resultsDiv.innerHTML = `<div class='text-center text-green-700 font-bold mb-2'>Lowest price in the next year: ${useRupee ? '₹' : '$'}${String(result.lowest_price).replace(/^[$₹]/, '')} on ${result.lowest_price_date}</div>`;
+                        }
+                        if (result.current_price) {
+                            resultsDiv.innerHTML += `<div class='text-center text-gray-700 mb-2'>Typical price for this route: <span class='font-semibold'>${useRupee ? '₹' : '$'}${String(result.current_price).replace(/^[$₹]/, '')}</span></div>`;
+                        }
+                        // Display results
+                        resultsDiv.innerHTML += result.flights.map(flight => `
+                            <div class="bg-white rounded-lg shadow-lg p-6 ${flight.is_best ? 'border-2 border-green-500' : ''}">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <h3 class="text-xl font-semibold">${flight.name}</h3>
+                                        <p class="text-gray-600">${flight.departure} → ${flight.arrival}</p>
+                                        <p class="text-sm text-gray-500">Duration: ${flight.duration}</p>
+                                        <p class="text-sm text-gray-500">Stops: ${flight.stops}</p>
+                                        ${flight.arrival_time_ahead ? `<p class='text-sm text-gray-500'>Arrival time ahead: ${flight.arrival_time_ahead}</p>` : ''}
+                                        ${flight.delay ? `<p class='text-sm text-gray-500'>Delay: ${flight.delay} min</p>` : ''}
+                                        ${flight.date ? `<p class='text-sm text-gray-500'>Date: ${flight.date}</p>` : ''}
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-2xl font-bold text-blue-600">${useRupee ? '₹' : '$'}${String(flight.price).replace(/^[$₹]/, '')}</p>
+                                        ${flight.is_best ? '<span class="text-green-500 text-sm">Best Deal!</span>' : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        resultsDiv.innerHTML = `<div class="text-red-600 text-center">${result.error}</div>`;
+                    }
+                } catch (error) {
+                    resultsDiv.innerHTML = `<div class="text-red-600 text-center">Error: ${error.message}</div>`;
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

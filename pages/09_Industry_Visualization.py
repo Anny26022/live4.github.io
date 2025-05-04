@@ -38,66 +38,67 @@ st.markdown("""
 st.markdown("""
 <style>
 body, .stApp {
-    background: #181c24 !important;
+    background: #fff !important;
 }
 .glass-card {
-    background: rgba(30, 33, 43, 0.74);
+    background: #f8fafc;
+    color: #222;
     border-radius: 14px;
-    box-shadow: 0 4px 18px 0 rgba(31, 38, 135, 0.27);
+    box-shadow: 0 4px 18px 0 rgba(31, 38, 135, 0.10);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.13);
+    border: 1px solid rgba(44, 62, 80, 0.10);
     padding: 1.2rem 1.1rem 1.1rem 1.1rem;
     margin-bottom: 1.1rem;
     margin-top: 0.5rem;
     max-width: 100%;
 }
 .glass-title {
-    color: #fff;
+    color: #222;
     font-size: 1.45rem;
     font-weight: 700;
     letter-spacing: 0.5px;
-    text-shadow: 0 1px 10px #0007;
+    text-shadow: none;
     margin-bottom: 0.32em;
     font-family: 'Segoe UI', 'Roboto', sans-serif;
 }
 .glass-subtitle {
-    color: #b0b8c5;
+    color: #555;
     font-size: 0.97rem;
     font-weight: 400;
     margin-bottom: 1.1em;
     font-family: 'Segoe UI', 'Roboto', sans-serif;
 }
+/* Removed custom input field background and border styling for default look */
+/*
 .stNumberInput>div>input, .stSelectbox>div>div>div>input, .stSelectbox>div>div>div>div {
-    background: rgba(255,255,255,0.10) !important;
+    background: #fff !important;
     border-radius: 6px !important;
-    color: #fff !important;
-    border: 1px solid #23293b !important;
+    color: #222 !important;
+    border: 1.5px solid #b0b8c5 !important;
     font-size: 0.98rem !important;
     padding: 0.25rem 0.7rem !important;
     height: 2.1rem !important;
 }
-.stNumberInput>div>input:focus, .stSelectbox>div>div>div>input:focus {
-    border: 1.2px solid #80cbc4 !important;
+.stNumberInput>div>input::placeholder, .stSelectbox>div>div>div>input::placeholder {
+    color: #888 !important;
+    opacity: 1 !important;
 }
 .stNumberInput label, .stSelectbox label {
-    color: #b0b8c5 !important;
+    color: #222 !important;
     font-weight: 500 !important;
     font-size: 0.92rem !important;
     margin-bottom: 0.25rem !important;
 }
+*/
 .stPlotlyChart>div>div>svg {
     font-family: 'Segoe UI', 'Roboto', sans-serif !important;
 }
 </style>
-<div class='glass-card'>
-    <div class='glass-title'>NSE Industry-wise Visualization</div>
-    <div class='glass-subtitle'>Explore the distribution of NSE stocks by industry using TradingView Screener API. Use the filters below to customize your view.</div>
-</div>
 """, unsafe_allow_html=True)
 
 with st.container():
-    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    # Removed glass-card div for cleaner look
     col1, col2, col3, col4 = st.columns([1.1, 1.1, 1.1, 1])
     with col1:
         returns_type = st.selectbox(
@@ -112,7 +113,6 @@ with st.container():
         stock_return_min = st.number_input("Stock Return(%) >", min_value=0.0, value=5.0, step=0.1, key="stock_return_min")
     with col4:
         min_industry_count = st.number_input("No. of stock in Industry >=", min_value=1, value=2, step=1, key="min_industry_count")
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # --- Fetch all NSE stocks via TradingView API (reference: 03_Custom_EMA_Scanner) ---
 with st.spinner("Fetching all NSE stocks via TradingView API..."):
@@ -235,9 +235,11 @@ if not df.empty:
 
     icon_svg = '''<svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;margin-right:8px;"><rect x="2.5" y="13.5" width="4" height="8" rx="1.5" fill="#1de9b6"/><rect x="9.5" y="9.5" width="4" height="12" rx="1.5" fill="#2962ff"/><rect x="16.5" y="4.5" width="4" height="17" rx="1.5" fill="#ff4081"/></svg>'''
     st.markdown(f"""
-    <div style='display:flex;align-items:center;margin-bottom:0.5rem;'>
-        {icon_svg}
-        <span style='font-size:1.6rem;font-weight:700;color:white;'>Max Stock Return by {group_label} (Histogram)</span>
+    <div class='glass-card' style='margin-bottom:1.2rem;'>
+        <div style='display:flex;align-items:center;margin-bottom:0.5rem;'>
+            {icon_svg}
+            <span style='font-size:1.6rem;font-weight:700;color:#222;margin-left:8px;'>Max Stock Return by {group_label} (Histogram)</span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 

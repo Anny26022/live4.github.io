@@ -2,12 +2,23 @@ import streamlit as st
 import pandas as pd
 from tradingview_screener import Query, Column
 import plotly.express as px
+from rapidfuzz import process, fuzz
 
 st.set_page_config(
     page_title="Stocks Up by %",
     page_icon="📈",
     layout="centered"
 )
+
+# --- Ensure price bands are loaded in session state ---
+try:
+    from pages.price_bands import fetch_price_bands
+    if 'price_bands_df' not in st.session_state or st.session_state.price_bands_df is None or st.session_state.price_bands_df.empty:
+        st.session_state.price_bands_df, st.session_state.bands_last_update = fetch_price_bands()
+except Exception as e:
+    st.warning(f"Could not load price bands data: {str(e)}")
+    st.session_state.price_bands_df = None
+    st.session_state.bands_last_update = None
 
 st.markdown("""
 <div style='display:flex;align-items:center;justify-content:center;margin-bottom:0.5em;'>
@@ -64,6 +75,18 @@ percent_threshold = st.number_input(
     format="%.2f"
 )
 
+# --- Price Band Filter Integration ---
+# Load price bands DataFrame from session state if available
+price_bands_df = st.session_state.get('price_bands_df')
+
+band_options = ['20%', '10%', '5%', '2%', 'No Band']
+selected_bands = st.multiselect(
+    "Filter by Price Band (select one or more):",
+    options=['All Bands'] + band_options,
+    default=['All Bands'],
+    help="Filter stocks by their price band as per latest exchange data. Select one or more bands."
+)
+
 # --- Query Construction ---
 where_conditions = []
 if selected_exchange == "Both":
@@ -79,6 +102,21 @@ if show_movers:
     where_conditions.append(Column(field) >= percent_threshold)
 else:
     where_conditions.append(Column(field) <= -percent_threshold)
+
+# --- Direct Price Band Filtering (no fuzzy matching) ---
+if price_bands_df is not None and ('All Bands' not in selected_bands):
+    band_map = {'20%': 20.0, '10%': 10.0, '5%': 5.0, '2%': 2.0}
+    allowed_symbols = set()
+    for band in selected_bands:
+        if band == 'No Band':
+            allowed_symbols.update(price_bands_df[price_bands_df['Band'].isna()]['Symbol'].unique())
+        else:
+            allowed_symbols.update(price_bands_df[price_bands_df['Band'] == band_map[band]]['Symbol'].unique())
+    allowed_symbols = [s.upper().strip() for s in allowed_symbols if pd.notna(s)]
+    if allowed_symbols:
+        where_conditions.append(Column("name").isin(allowed_symbols))
+    else:
+        st.warning(f"No stocks found in selected price band(s). No price band filter applied.")
 
 # Always include all official performance fields in select for fallback
 perf_fields = list(official_period_field_map.values())
@@ -117,8 +155,9 @@ if not df.empty:
     if 'market_cap_basic' in df.columns and df['market_cap_basic'].max() > 1e7:
         df['market_cap_basic'] = df['market_cap_basic'] / 1e7
     
+    # Rename columns for display
     rename_dict = {
-        'name': 'Stock Name',
+        'name': 'Symbol',
         'close': 'Close Price',
         found_field: f'% Change ({actual_period})',
         'volume': 'Volume',
@@ -134,25 +173,78 @@ if not df.empty:
         st.error(f"Data missing required column '{sort_col}'. Available columns: {list(df.columns)}. Please check your data source or period selection.")
         st.stop()
 
-    # Debug: Show available instrument types
-    # if 'Instrument Type' in df.columns:
-    #     st.write("Instrument types present in data:", df['Instrument Type'].unique())
-    # else:
-    #     st.write("No instrument type column present in data.")
+    # --- Robust NaN handling for sliders and filters ---
+    # Drop rows with NaN in key columns before slider/filtering
+    before_drop = len(df)
+    df = df.dropna(subset=["Close Price", "Market Cap"])
+    dropped = before_drop - len(df)
+    if dropped > 0:
+        # st.info(f"Dropped {dropped} rows with missing Close Price or Market Cap.")
+        pass
+    if df.empty:
+        st.warning("No stocks left after removing rows with missing Close Price or Market Cap. Try adjusting your filters or check back later.")
+        st.stop()
+    if df["Close Price"].isna().all():
+        st.warning("All values in 'Close Price' are NaN. Cannot filter or display results.")
+        st.stop()
+    if df["Market Cap"].isna().all():
+        st.warning("All values in 'Market Cap' are NaN. Cannot filter or display results.")
+        st.stop()
+
+    # NOTE: Price band filtering is applied locally after fetching data from TradingView.
+    # Apply price band filter if not 'All Bands' and price_bands_df is available
+    if price_bands_df is not None and ('All Bands' not in selected_bands):
+        band_map = {'20%': 20.0, '10%': 10.0, '5%': 5.0, '2%': 2.0}
+        allowed_symbols = set()
+        for band in selected_bands:
+            if band == 'No Band':
+                allowed_symbols.update(price_bands_df[price_bands_df['Band'].isna()]['Symbol'].unique())
+            else:
+                allowed_symbols.update(price_bands_df[price_bands_df['Band'] == band_map[band]]['Symbol'].unique())
+        allowed_symbols = [s.upper().strip() for s in allowed_symbols if pd.notna(s)]
+        before_band = len(df)
+        df = df[df['Symbol'].isin(allowed_symbols)]
+        after_band = len(df)
+        st.info(f"Filtered by {', '.join(selected_bands)}: {after_band} stocks shown (from {before_band}).")
+
+    # Merge in price band data for display
+    if price_bands_df is not None and not price_bands_df.empty:
+        df['Symbol'] = df['Symbol'].astype(str).str.upper().str.strip()
+        price_bands_df['Symbol'] = price_bands_df['Symbol'].astype(str).str.upper().str.strip()
+        merged_df = df.merge(
+            price_bands_df[['Symbol', 'Band']],
+            on='Symbol',
+            how='left'
+        )
+        merged_df['Price Band'] = merged_df['Band'].apply(lambda x: f"{int(x)}%" if pd.notnull(x) else "No Band")
+        merged_df.drop(columns=['Band'], inplace=True)
+        df = merged_df
+
+    close_min = df["Close Price"].min()
+    close_max = df["Close Price"].max()
+    cap_min = df["Market Cap"].min()
+    cap_max = df["Market Cap"].max()
+
+    if pd.isna(close_min) or pd.isna(close_max):
+        st.warning("No valid Close Price data available for slider. Try adjusting your filters or check back later.")
+        st.stop()
+    if pd.isna(cap_min) or pd.isna(cap_max):
+        st.warning("No valid Market Cap data available for slider. Try adjusting your filters or check back later.")
+        st.stop()
 
     min_price, max_price = st.slider(
         "Filter by Close Price:",
-        min_value=float(df["Close Price"].min() if not df.empty else 0),
-        max_value=float(df["Close Price"].max() if not df.empty else 10000),
-        value=(float(df["Close Price"].min() if not df.empty else 0), float(df["Close Price"].max() if not df.empty else 10000)),
+        min_value=float(close_min),
+        max_value=float(close_max),
+        value=(float(close_min), float(close_max)),
         step=1.0,
         format="%.2f"
     )
     min_cap, max_cap = st.slider(
         "Filter by Market Cap (Cr):",
-        min_value=float(df["Market Cap"].min() if not df.empty else 0),
-        max_value=float(df["Market Cap"].max() if not df.empty else 1e13),
-        value=(float(df["Market Cap"].min() if not df.empty else 0), float(df["Market Cap"].max() if not df.empty else 1e13)),
+        min_value=float(cap_min),
+        max_value=float(cap_max),
+        value=(float(cap_min), float(cap_max)),
         step=1e7,
         format="%.0f"
     )
@@ -170,19 +262,19 @@ if not df.empty:
 
     st.markdown("""
         <style>
-            .stSlider > div[data-baseweb="slider"] {background: rgba(36, 40, 47, 0.55);border-radius: 16px;padding: 1.2rem 2rem 1.7rem 2rem;box-shadow: 0 8px 32px 0 rgba(31,38,135,0.15);backdrop-filter: blur(6px);-webkit-backdrop-filter: blur(6px);border: 1.5px solid rgba(255,255,255,0.12);max-width: 520px;margin-bottom: 1.5rem;margin-top: 1.2rem;transition: box-shadow 0.35s, background 0.35s, border 0.35s;}
+            .stSlider > div[data-baseweb="slider"] {background: #f8fafc;border-radius: 16px;padding: 1.2rem 2rem 1.7rem 2rem;box-shadow: 0 8px 32px 0 rgba(31,38,135,0.07);backdrop-filter: blur(6px);-webkit-backdrop-filter: blur(6px);border: 1.5px solid #e0e7ef;max-width: 520px;margin-bottom: 1.5rem;margin-top: 1.2rem;transition: box-shadow 0.35s, background 0.35s, border 0.35s;}
             .stSlider .rc-slider {margin: 0 0 0.8rem 0;height: 22px;}
-            .stSlider .rc-slider-rail {background: rgba(200, 200, 255, 0.18);height: 7px;transition: background 0.3s;}
+            .stSlider .rc-slider-rail {background: #e0e7ef;height: 7px;transition: background 0.3s;}
             .stSlider .rc-slider-track {background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);height: 7px;border-radius: 7px;transition: background 0.3s;}
             .stSlider .rc-slider-handle {border: none;background: #fff;box-shadow: 0 2px 12px 0 #38f9d755;width: 20px;height: 20px;margin-top: -7px;transition: box-shadow 0.2s, background 0.2s;}
             .stSlider .rc-slider-handle:active {box-shadow: 0 0 0 8px #43e97b33;}
             .stSlider .rc-slider-mark {width: 100%;display: flex;justify-content: space-between;position: absolute;top: -1.4em;left: 0;right: 0;pointer-events: none;}
-            .stSlider .rc-slider-mark-text {color: #b3c7f7;font-size: 0.93rem;letter-spacing: 0.04em;background: rgba(36,40,47,0.7);padding: 0.18em 0.7em;border-radius: 7px;min-width: 2.7em;text-align: center;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;box-shadow: 0 2px 8px 0 rgba(0,0,0,0.10);margin-left: 0;margin-right: 0;transition: background 0.3s, color 0.3s;}
+            .stSlider .rc-slider-mark-text {color: #222;font-size: 0.93rem;letter-spacing: 0.04em;background: #f8fafc;padding: 0.18em 0.7em;border-radius: 7px;min-width: 2.7em;text-align: center;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);margin-left: 0;margin-right: 0;transition: background 0.3s, color 0.3s;}
             .stSlider .rc-slider-dot {display: none;}
-            .stTextInput > div > input {background: rgba(36, 40, 47, 0.45);color: #fff;border-radius: 10px;border: 1.5px solid rgba(255,255,255,0.13);font-size: 1.08rem;padding: 0.45rem 1.1rem;height: 2.3rem;box-shadow: 0 2px 12px 0 rgba(0,0,0,0.10);transition: background 0.3s, border 0.3s;}
-            .stRadio > div {background: rgba(36, 40, 47, 0.45);border-radius: 10px;padding: 0.35rem 0.8rem;max-width: 520px;margin-bottom: 1.1rem;border: 1.5px solid rgba(255,255,255,0.10);transition: background 0.3s, border 0.3s;}
+            .stTextInput > div > input {background: #fff;color: #222;border-radius: 10px;border: 1.5px solid #e0e7ef;font-size: 1.08rem;padding: 0.45rem 1.1rem;height: 2.3rem;box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04);transition: background 0.3s, border 0.3s;}
+            .stRadio > div {background: #f8fafc;border-radius: 10px;padding: 0.35rem 0.8rem;max-width: 520px;margin-bottom: 1.1rem;border: 1.5px solid #e0e7ef;transition: background 0.3s, border 0.3s;}
             .stMetric { color: #1976d2 !important; font-size: 1.13rem; }
-            .stDataFrame, .stTable {background: rgba(36, 40, 47, 0.45) !important;border-radius: 13px;font-size: 1.01rem;border: 1.5px solid rgba(255,255,255,0.09);box-shadow: 0 4px 24px 0 rgba(31,38,135,0.09);transition: background 0.3s, border 0.3s;}
+            .stDataFrame, .stTable {background: #f8fafc !important;border-radius: 13px;font-size: 1.01rem;border: 1.5px solid #e0e7ef;box-shadow: 0 4px 24px 0 rgba(31,38,135,0.04);transition: background 0.3s, border 0.3s;}
             .stSlider label[data-testid="stMarkdownContainer"] > div {display: none !important;}
         </style>
     """, unsafe_allow_html=True)
@@ -192,7 +284,7 @@ if not df.empty:
             len(filtered_df)
         )
         # Only show columns that exist in the DataFrame to avoid KeyError
-        display_cols = [col for col in ['Stock Name', 'Instrument Type', 'Close Price', f'% Change ({actual_period})', 'Volume', 'Market Cap'] if col in filtered_df.columns]
+        display_cols = [col for col in ['Symbol', 'Instrument Type', 'Close Price', f'% Change ({actual_period})', 'Volume', 'Market Cap', 'Price Band'] if col in df.columns]
         st.dataframe(
             filtered_df[display_cols],
             use_container_width=True
@@ -202,20 +294,20 @@ if not df.empty:
         if not plot_df.empty:
             fig = px.scatter(
                 plot_df,
-                x='Stock Name',
+                x='Symbol',
                 y=f'% Change ({actual_period})',
                 size='Market Cap',
                 color='Close Price',
                 hover_data=['Volume', 'Close Price', 'Market Cap'],
                 title=f"{'Top' if show_movers else 'Bottom'} 30 Stocks by % Change ({actual_period})",
                 labels={
-                    'Stock Name': 'Stock',
+                    'Symbol': 'Symbol',
                     f'% Change ({actual_period})': '% Change',
                     'Close Price': 'Close Price',
                     'Market Cap': 'Market Cap',
                 },
                 color_continuous_scale=px.colors.sequential.Viridis,
-                template='plotly_dark',
+                template='plotly_white',
                 opacity=0.87,
             )
             fig.update_traces(
@@ -228,23 +320,23 @@ if not df.empty:
             )
             fig.update_layout(
                 xaxis_tickangle=-38,
-                plot_bgcolor='rgba(24,26,32,0.96)',
-                paper_bgcolor='rgba(24,26,32,0.99)',
-                font=dict(family='Segoe UI, Roboto, Arial', size=15, color='#e6e6e6'),
-                title_font=dict(size=23, family='Segoe UI, Roboto, Arial', color='#fff'),
+                plot_bgcolor='#fff',
+                paper_bgcolor='#fff',
+                font=dict(family='Segoe UI, Roboto, Arial', size=15, color='#222'),
+                title_font=dict(size=23, family='Segoe UI, Roboto, Arial', color='#111'),
                 margin=dict(l=10, r=10, t=54, b=70),
                 height=450,
                 xaxis=dict(showgrid=False, zeroline=False),
                 yaxis=dict(showgrid=True, gridcolor='rgba(120,120,120,0.16)', zeroline=False),
                 coloraxis_colorbar=dict(
-                    title=dict(text='Close Price', font=dict(color='#b3c7f7', size=15)),
+                    title=dict(text='Close Price', font=dict(color='#222', size=15)),
                     thickness=12,
                     len=0.56,
                     yanchor='middle',
                     y=0.54,
                     outlinewidth=0,
-                    tickfont=dict(color='#b3c7f7', size=13),
-                    bgcolor='rgba(24,26,32,0.99)'
+                    tickfont=dict(color='#222', size=13),
+                    bgcolor='#fff'
                 ),
             )
             fig.update_xaxes(showline=False, linewidth=0.8, linecolor='#333', mirror=False, showgrid=False)

@@ -75,14 +75,14 @@ st.markdown("""
 /* === ENHANCED UI: Modern, Interactive, Material, Emoji Accents === */
 body, .stApp {
     font-family: 'Roboto', Arial, sans-serif !important;
-    background: linear-gradient(135deg, #232526 0%, #111 100%) !important;
+    background: #fff !important;
 }
 
 section[data-testid="stSidebar"] {
-    background: rgba(20, 22, 28, 0.97) !important;
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.24);
-    border-right: 2px solid rgba(95,168,211,0.11);
-    backdrop-filter: blur(16px);
+    background: #f8fafc !important;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+    border-right: 2px solid rgba(95,168,211,0.07);
+    backdrop-filter: blur(8px);
     padding-top: 2.2rem !important;
     padding-bottom: 2.2rem !important;
     transition: background 0.4s;
@@ -94,7 +94,7 @@ section[data-testid="stSidebar"] {
 }
 
 .stButton > button {
-    background: linear-gradient(90deg, #5fa8d3 0%, #232526 100%);
+    background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
     color: #fff;
     border: none;
     border-radius: 8px;
@@ -102,7 +102,7 @@ section[data-testid="stSidebar"] {
     font-size: 1.08rem;
     padding: 0.57rem 1.25rem;
     margin: 0.2rem 0 0.4rem 0;
-    box-shadow: 0 2px 8px rgba(95,168,211,0.13);
+    box-shadow: 0 2px 8px rgba(59,130,246,0.13);
     transition: background 0.3s, box-shadow 0.3s, transform 0.2s;
     letter-spacing: 0.01em;
     display: flex;
@@ -110,24 +110,24 @@ section[data-testid="stSidebar"] {
     gap: 0.6em;
 }
 .stButton > button:hover {
-    background: linear-gradient(90deg, #232526 0%, #5fa8d3 100%);
-    box-shadow: 0 4px 18px rgba(95,168,211,0.16);
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+    box-shadow: 0 4px 18px rgba(59,130,246,0.16);
     transform: scale(1.06);
 }
 
 .stTextInput > div > input, .stTextArea > div > textarea, .stSelectbox > div > div {
-    background: rgba(255,255,255,0.09) !important;
-    color: #eaeaea !important;
+    background: #fff !important;
+    color: #222 !important;
     border-radius: 8px !important;
-    border: 1.5px solid #5fa8d3 !important;
+    border: 1.5px solid #b0b8c5 !important;
     font-size: 1.08rem !important;
     padding: 0.4rem 0.8rem !important;
     margin-bottom: 0.1rem !important;
     transition: border 0.2s, background 0.2s;
 }
 .stTextInput > div > input:focus, .stTextArea > div > textarea:focus, .stSelectbox > div > div:focus {
-    border: 1.5px solid #f1c40f !important;
-    background: rgba(255,255,255,0.13) !important;
+    border: 1.5px solid #2563eb !important;
+    background: #f8fafc !important;
 }
 
 .stSelectbox > div > div {
@@ -135,8 +135,8 @@ section[data-testid="stSidebar"] {
     height: 2.25rem !important;
     font-size: 1.08rem !important;
     border-radius: 8px !important;
-    box-shadow: 0 1px 8px 0 rgba(95,168,211,0.11), 0 1px 0.5px 0 rgba(255,255,255,0.08) inset;
-    background: rgba(54, 71, 103, 0.24) !important;
+    box-shadow: 0 1px 8px 0 rgba(59,130,246,0.11), 0 1px 0.5px 0 rgba(44,62,80,0.08) inset;
+    background: #fff !important;
     font-weight: 600 !important;
     line-height: 1.19 !important;
     padding-left: 0.7rem !important;
@@ -152,7 +152,7 @@ section[data-testid="stSidebar"] {
     padding-left: 0em;
 }
 .stSelectbox label {
-    color: #5fa8d3 !important;
+    color: #2563eb !important;
     font-size: 1.01rem !important;
     font-weight: 800 !important;
     margin-bottom: 0.11rem !important;
@@ -168,12 +168,12 @@ section[data-testid="stSidebar"] {
 
 /* News Card - Glass, Minimal, Animated, Emoji Accents */
 .card-glossy {
-    background: linear-gradient(120deg, rgba(36, 42, 60, 0.97) 60%, rgba(44,46,56,0.99) 100%);
-    box-shadow: 0 6px 32px 0 rgba(31, 38, 135, 0.22);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: #f8fafc;
+    box-shadow: 0 6px 32px 0 rgba(31, 38, 135, 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border-radius: 16px;
-    border: 1.4px solid rgba(95,168,211,0.13);
+    border: 1.4px solid #e0e7ef;
     margin-bottom: 1.1rem;
     padding: 1.3rem 1.1rem 1.1rem 1.1rem;
     transition: box-shadow 0.32s cubic-bezier(.4,0,.2,1), transform 0.32s cubic-bezier(.4,0,.2,1);
@@ -182,23 +182,28 @@ section[data-testid="stSidebar"] {
     overflow: hidden;
 }
 .card-glossy:hover {
-    box-shadow: 0 10px 40px 0 rgba(95,168,211,0.22);
+    box-shadow: 0 10px 40px 0 rgba(59,130,246,0.13);
     transform: translateY(-2.5px) scale(1.018);
-    background: linear-gradient(120deg, rgba(40, 60, 90, 1) 60%, rgba(44,46,56,1) 100%);
+    background: #f1f5f9;
 }
 .card-emoji {
     position: absolute;
     top: 1.1rem;
     right: 1.1rem;
-    font-size: 1rem;
-    filter: drop-shadow(0 1px 3px #0006);
-    opacity: 0.92;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    background: currentColor;
+    border: 1.2px solid #eee;
+    box-shadow: none;
+    opacity: 0.95;
     pointer-events: none;
     user-select: none;
-    line-height: 1;
-    padding: 0;
     margin: 0;
-    transition: transform 0.18s cubic-bezier(.4,0,.2,1);
+    padding: 0;
+    line-height: 1;
+    transition: none;
 }
 @keyframes fadeInCard {
   from { opacity: 0; transform: translateY(20px); }
@@ -211,25 +216,25 @@ section[data-testid="stSidebar"] {
 
 ::-webkit-scrollbar {
     width: 6px !important;
-    background: #232526;
+    background: #f8fafc;
 }
 ::-webkit-scrollbar-thumb {
-    background: #5fa8d3;
+    background: #b0b8c5;
     border-radius: 8px;
     min-height: 30px;
 }
 
 /* Ensure high contrast for text and links */
 .card-glossy, .card-glossy * {
-    color: #eaeaea !important;
+    color: #222 !important;
 }
 .card-glossy a {
-    color: #5fa8d3 !important;
+    color: #2563eb !important;
     text-decoration: none;
     font-weight: 700;
 }
 .card-glossy a:hover {
-    color: #f1c40f !important;
+    color: #f59e42 !important;
     text-decoration: underline;
 }
 
@@ -238,14 +243,14 @@ section[data-testid="stSidebar"] {
     display: none;
 }
 .stTextInput.search-bar input {
-    background: rgba(255,255,255,0.14) !important;
-    border: 2px solid #5fa8d3 !important;
+    background: #fff !important;
+    border: 2px solid #b0b8c5 !important;
     border-radius: 2rem !important;
     font-size: 1.09rem !important;
     font-weight: 600;
-    color: #eaeaea !important;
+    color: #222 !important;
     padding: 0.58rem 1rem 0.58rem 1rem !important;
-    box-shadow: 0 2px 12px 0 rgba(95,168,211,0.13);
+    box-shadow: 0 2px 12px 0 rgba(44,62,80,0.07);
     transition: border 0.22s, box-shadow 0.22s, background 0.22s;
     outline: none !important;
     width: 100%;
@@ -256,9 +261,9 @@ section[data-testid="stSidebar"] {
     box-sizing: border-box;
 }
 .stTextInput.search-bar input:focus {
-    border: 2px solid #f1c40f !important;
-    background: rgba(255,255,255,0.19) !important;
-    box-shadow: 0 4px 24px 0 rgba(241,196,15,0.10);
+    border: 2px solid #2563eb !important;
+    background: #f8fafc !important;
+    box-shadow: 0 4px 24px 0 rgba(59,130,246,0.10);
 }
 @media (max-width: 600px) {
   .stTextInput.search-bar input, .stTextInput.search-bar {

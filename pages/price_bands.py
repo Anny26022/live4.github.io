@@ -13,7 +13,8 @@ def fetch_price_bands():
         df = pd.read_csv(url)
         df = df[['Symbol', 'Series', 'Security Name', 'Band']]
         df['Band'] = pd.to_numeric(df['Band'], errors='coerce')
-        df['Last Updated'] = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+        current_time = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+        df['Last Updated'] = current_time
         # Use the latest timestamp as version
         latest_update = df['Last Updated'].iloc[0] if not df.empty else str(time.time())
         return df, latest_update

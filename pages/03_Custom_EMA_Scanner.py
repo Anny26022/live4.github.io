@@ -722,16 +722,16 @@ st.markdown("""
     /* Fix Streamlit sidebar background and responsiveness */
     @media (max-width: 800px) {
         section[data-testid="stSidebar"] {
-            background: #232526 !important;
+            background: #f8fafc !important;
             opacity: 1 !important;
             box-shadow: 0 2px 10px 0 rgba(31, 38, 135, 0.10);
-            color: #fff !important;
+            color: #222 !important;
         }
     }
     section[data-testid="stSidebar"] {
-        background: #232526 !important;
+        background: #f8fafc !important;
         opacity: 1 !important;
-        color: #fff !important;
+        color: #222 !important;
         box-shadow: 0 2px 10px 0 rgba(31, 38, 135, 0.10);
     }
 </style>
@@ -811,7 +811,12 @@ with st.container():
     with col1:
         st.markdown('<div class="filter-card">', unsafe_allow_html=True)
         st.markdown('<h3 class="filter-title">Price Above Moving Averages</h3>', unsafe_allow_html=True)
-        enable_above_ema = st.checkbox("Enable Above EMA Filters", value=not disable_all_filters, disabled=disable_all_filters)
+        enable_above_ema = st.checkbox(
+            "Enable Above EMA Filters",
+            value=not disable_all_filters,
+            disabled=disable_all_filters or st.session_state.get('enable_below_ema', False),
+            key="enable_above_ema"
+        )
         if enable_above_ema:
             selected_above = st.multiselect(
                 "Select Moving Averages:",
@@ -820,14 +825,29 @@ with st.container():
                 key="ema_above",
                 disabled=disable_all_filters
             )
+            # Stacking checkbox for above EMAs
+            if selected_above and len(selected_above) > 1:
+                stacking_above_enabled = st.checkbox(
+                    "Require stacked EMAs (e.g., EMA50 > EMA150 > EMA200)",
+                    value=False,
+                    key="stacking_above"
+                )
+            else:
+                stacking_above_enabled = False
         else:
             selected_above = []
+            stacking_above_enabled = False
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
         st.markdown('<div class="filter-card">', unsafe_allow_html=True)
         st.markdown('<h3 class="filter-title">Price Below Moving Averages</h3>', unsafe_allow_html=True)
-        enable_below_ema = st.checkbox("Enable Below EMA Filters", value=False, disabled=disable_all_filters)
+        enable_below_ema = st.checkbox(
+            "Enable Below EMA Filters",
+            value=False,
+            disabled=disable_all_filters or st.session_state.get('enable_above_ema', False),
+            key="enable_below_ema"
+        )
         if enable_below_ema:
             below_options = [
                 ("Below 200 Days MA", "EMA200"),
@@ -842,8 +862,18 @@ with st.container():
                 key="ema_below",
                 disabled=disable_all_filters
             )
+            # Stacking checkbox for below EMAs
+            if selected_below and len(selected_below) > 1:
+                stacking_below_enabled = st.checkbox(
+                    "Require stacked EMAs (e.g., EMA50 < EMA150 < EMA200)",
+                    value=False,
+                    key="stacking_below"
+                )
+            else:
+                stacking_below_enabled = False
         else:
             selected_below = []
+            stacking_below_enabled = False
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Additional Filters Section
@@ -1091,6 +1121,17 @@ with st.container():
 
     listing_dates_map = get_listing_dates()
 
+    # --- DEBUG: Print filter values ---
+    print('DEBUG: market_cap_min:', market_cap_min)
+    print('DEBUG: market_cap_max:', market_cap_max)
+    print('DEBUG: stock_price_min:', stock_price_min)
+    print('DEBUG: stock_price_max:', stock_price_max)
+    print('DEBUG: selected_exchanges:', selected_exchanges)
+    print('DEBUG: selected_instrument_types:', selected_instrument_types)
+    print('DEBUG: selected_bands:', selected_bands)
+    print('DEBUG: use_52w_low:', use_52w_low)
+    print('DEBUG: use_float:', use_float if "use_float" in locals() else False)
+    print('DEBUG: turnover_filter_enabled:', turnover_filter_enabled if "turnover_filter_enabled" in locals() else False)
     # --- Query Construction ---
     # Build below_label_map dynamically to match label style
     below_options = [
@@ -1107,18 +1148,45 @@ with st.container():
     if contradictory_emas:
         st.warning(f"You selected both 'Above' and 'Below' for: {', '.join(contradictory_emas)}. Please fix your selection.")
 
+    # --- Stacking logic selection ---
+    # Use stacking_above_enabled for above, stacking_below_enabled for below
+    stacking_enabled = stacking_above_enabled if enable_above_ema else (stacking_below_enabled if enable_below_ema else False)
+
     # Build filters
     ema_filters = []
-    if enable_above_ema:
-        for label in selected_above:
-            ema_col = dict(ema_options)[label]
+    if enable_above_ema and selected_above:
+        ema_label_to_period = {
+            "Above 200 Days MA": 200,
+            "Above 150 Days MA": 150,
+            "Above 50 Days MA": 50,
+            "Above 20 Days MA": 20,
+            "Above 10 Days MA": 10,
+        }
+        selected_above_sorted = sorted(selected_above, key=lambda x: ema_label_to_period.get(x, 0))
+        ema_cols_sorted = [dict(ema_options)[label] for label in selected_above_sorted]
+        # Price above all selected EMAs
+        for ema_col in ema_cols_sorted:
             ema_filters.append(Column("close") > Column(ema_col))
-    if enable_below_ema:
-        for label in selected_below:
-            orig_label = below_label_map.get(label, label)
-            ema_col = dict(ema_options)[orig_label]
-
+        # Stacking condition if enabled
+        if stacking_enabled and len(ema_cols_sorted) > 1:
+            for i in range(len(ema_cols_sorted) - 1):
+                ema_filters.append(Column(ema_cols_sorted[i]) > Column(ema_cols_sorted[i+1]))
+    if enable_below_ema and selected_below:
+        ema_label_to_period = {
+            "Below 200 Days MA": 200,
+            "Below 150 Days MA": 150,
+            "Below 50 Days MA": 50,
+            "Below 20 Days MA": 20,
+            "Below 10 Days MA": 10,
+        }
+        selected_below_sorted = sorted(selected_below, key=lambda x: ema_label_to_period.get(x, 0))
+        ema_cols_sorted = [dict(ema_options)[below_label_map.get(label, label)] for label in selected_below_sorted]
+        for ema_col in ema_cols_sorted:
             ema_filters.append(Column("close") < Column(ema_col))
+        # Stacking condition if enabled
+        if stacking_enabled and len(ema_cols_sorted) > 1:
+            for i in range(len(ema_cols_sorted) - 1):
+                ema_filters.append(Column(ema_cols_sorted[i]) < Column(ema_cols_sorted[i+1]))
 
     other_filters = []
     post_filters = []
@@ -1170,6 +1238,8 @@ with st.container():
 
     # Add F&O support filter to the list before combining
     other_filters.append(Column('type').isin(selected_instrument_types))
+    # Do NOT filter on is_primary for NSE by default
+    # If you have a UI option for primary listing, only apply it if the user selects it
 
     # Combine all filters
     query_filters = ema_filters + [f for f in other_filters if not callable(f)]
